@@ -15,6 +15,7 @@ import {
   Loader2,
   MapPin,
   Search,
+  Sparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -28,6 +29,7 @@ type JobListing = {
   location: string;
   description: string;
   apply_url: string;
+  linkedin_url: string;
   job_type: JobType;
   time: bigint;
 };
@@ -40,18 +42,23 @@ const FALLBACK_JOBS: JobListing[] = [
     location: "Bangalore, India",
     description:
       "Join Google's engineering team to build scalable software systems. Work on real products used by billions of people worldwide. Strong DSA and problem-solving skills required.",
-    apply_url: "https://careers.google.com",
+    apply_url:
+      "https://careers.google.com/jobs/results/?employment_type=INTERN",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=Software+Engineer+Intern+Google&location=Bangalore%2C+India",
     job_type: JobType.internship,
     time: BigInt(0),
   },
   {
     id: "j2",
-    title: "Frontend Developer",
+    title: "Frontend Developer Intern",
     company: "Flipkart",
     location: "Remote",
     description:
       "Build beautiful, high-performance web experiences for India's largest e-commerce platform. React, TypeScript, and CSS expertise needed. Collaborate with design teams on cutting-edge UIs.",
     apply_url: "https://www.flipkartcareers.com",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=Frontend+Developer+Intern+Flipkart&location=India",
     job_type: JobType.internship,
     time: BigInt(0),
   },
@@ -63,6 +70,8 @@ const FALLBACK_JOBS: JobListing[] = [
     description:
       "Analyze large datasets to derive actionable insights for enterprise clients. Proficiency in SQL, Python, and data visualization tools required. Drive data-driven decision making.",
     apply_url: "https://www.infosys.com/careers",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=Data+Analyst+Infosys&location=Hyderabad%2C+India",
     job_type: JobType.full_time,
     time: BigInt(0),
   },
@@ -74,6 +83,8 @@ const FALLBACK_JOBS: JobListing[] = [
     description:
       "Develop and maintain enterprise-grade Java backend services for global clients. Experience with Spring Boot, Microservices, and REST APIs preferred. Agile environment.",
     apply_url: "https://www.tcs.com/careers",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=Java+Backend+Developer+TCS&location=Mumbai%2C+India",
     job_type: JobType.full_time,
     time: BigInt(0),
   },
@@ -85,7 +96,87 @@ const FALLBACK_JOBS: JobListing[] = [
     description:
       "Build automation tools and data pipelines using Python. Knowledge of Django, Flask, or FastAPI is a plus. Work with cross-functional teams on digital transformation projects.",
     apply_url: "https://www.wipro.com/careers",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=Python+Developer+Wipro&location=Pune%2C+India",
     job_type: JobType.part_time,
+    time: BigInt(0),
+  },
+  {
+    id: "j6",
+    title: "Software Development Engineer Intern",
+    company: "Amazon",
+    location: "Hyderabad, India",
+    description:
+      "Work on Amazon's world-class engineering problems as an SDE intern. Contribute to AWS or consumer products. Strong CS fundamentals, coding skills, and curiosity to learn at scale required.",
+    apply_url: "https://www.amazon.jobs/en/teams/internships-for-students",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=SDE+Intern+Amazon&location=Hyderabad%2C+India",
+    job_type: JobType.internship,
+    time: BigInt(0),
+  },
+  {
+    id: "j7",
+    title: "Product Management Intern",
+    company: "Razorpay",
+    location: "Bangalore, India",
+    description:
+      "Define product strategy for India's leading fintech unicorn. Work with engineering and design to ship features used by millions of merchants. Analytical mindset and user empathy required.",
+    apply_url: "https://razorpay.com/jobs",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=Product+Management+Intern+Razorpay&location=Bangalore%2C+India",
+    job_type: JobType.internship,
+    time: BigInt(0),
+  },
+  {
+    id: "j8",
+    title: "Data Science Intern",
+    company: "Zomato",
+    location: "Remote",
+    description:
+      "Solve real-world food-tech problems using machine learning and statistical modelling. Work with large-scale order and delivery datasets. Python, Pandas, and ML fundamentals required.",
+    apply_url: "https://www.zomato.com/careers",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=Data+Science+Intern+Zomato&location=India",
+    job_type: JobType.internship,
+    time: BigInt(0),
+  },
+  {
+    id: "j9",
+    title: "Full Stack Developer",
+    company: "HCL Technologies",
+    location: "Delhi, India",
+    description:
+      "Build end-to-end web applications for enterprise clients across the globe. Strong skills in React, Node.js, and SQL needed. Exposure to cloud platforms (AWS/Azure) is an advantage.",
+    apply_url: "https://www.hcltech.com/careers",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=Full+Stack+Developer+HCL&location=Delhi%2C+India",
+    job_type: JobType.full_time,
+    time: BigInt(0),
+  },
+  {
+    id: "j10",
+    title: "Machine Learning Engineer",
+    company: "Microsoft",
+    location: "Noida, India",
+    description:
+      "Design and deploy ML models powering Microsoft's AI products. Work on NLP, computer vision, or recommendation systems. Strong Python, PyTorch/TensorFlow, and research experience preferred.",
+    apply_url: "https://careers.microsoft.com",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=Machine+Learning+Engineer+Microsoft&location=Noida%2C+India",
+    job_type: JobType.full_time,
+    time: BigInt(0),
+  },
+  {
+    id: "j11",
+    title: "UI/UX Design Intern",
+    company: "Swiggy",
+    location: "Bangalore, India",
+    description:
+      "Craft intuitive and delightful design experiences for Swiggy's mobile and web products. Proficiency in Figma and user research methods required. Portfolio showcasing strong visual craft preferred.",
+    apply_url: "https://careers.swiggy.com",
+    linkedin_url:
+      "https://www.linkedin.com/jobs/search/?keywords=UI+UX+Design+Intern+Swiggy&location=Bangalore%2C+India",
+    job_type: JobType.internship,
     time: BigInt(0),
   },
 ];
@@ -107,12 +198,38 @@ const JOB_TYPE_MAP: Record<string, { label: string; color: string }> = {
 
 type FilterType = "all" | "full_time" | "internship" | "part_time";
 
+/** LinkedIn "in" icon — lucide-react doesn't ship a Linkedin icon in all versions */
+function LinkedInIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+    </svg>
+  );
+}
+
 export default function JobListings() {
   const { data: backendJobs = [], isLoading } = useGetAllJobListings();
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
 
-  const jobs = backendJobs.length > 0 ? backendJobs : FALLBACK_JOBS;
+  // Merge backend jobs with linkedin_url fallback
+  const rawJobs = backendJobs.length > 0 ? backendJobs : FALLBACK_JOBS;
+  const jobs: JobListing[] = rawJobs.map((j: any) => ({
+    ...j,
+    linkedin_url:
+      j.linkedin_url ||
+      `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(j.title)}&location=India`,
+  }));
+
+  const internshipCount = jobs.filter(
+    (j) => j.job_type === JobType.internship,
+  ).length;
 
   const filtered = jobs.filter((job) => {
     const matchesFilter = filter === "all" || job.job_type === filter;
@@ -146,6 +263,50 @@ export default function JobListings() {
         </p>
       </motion.div>
 
+      {/* Internship Spotlight Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.1 }}
+        className="relative overflow-hidden rounded-xl border border-green-500/30 bg-gradient-to-r from-green-500/10 via-emerald-500/8 to-teal-500/10 p-4 sm:p-5"
+        data-ocid="jobs.internship_spotlight.panel"
+      >
+        {/* decorative blobs */}
+        <div className="pointer-events-none absolute -right-8 -top-8 w-40 h-40 rounded-full bg-green-400/10 blur-2xl" />
+        <div className="pointer-events-none absolute -left-4 bottom-0 w-24 h-24 rounded-full bg-emerald-400/10 blur-xl" />
+
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-green-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-green-400 text-sm sm:text-base">
+                  Internship Spotlight
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-300 border border-green-500/30">
+                  {internshipCount} available
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-snug">
+                Explore internship opportunities from top companies — apply
+                directly via LinkedIn or company portal.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setFilter("internship")}
+            className="flex-shrink-0 bg-green-600 hover:bg-green-500 text-white border-0 gap-1.5 shadow-md shadow-green-900/30"
+            data-ocid="jobs.internship_spotlight.button"
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            View Internships
+          </Button>
+        </div>
+      </motion.div>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
@@ -158,7 +319,7 @@ export default function JobListings() {
             data-ocid="jobs.search_input"
           />
         </div>
-        <div className="flex gap-2" data-ocid="jobs.filter.tab">
+        <div className="flex gap-2 flex-wrap" data-ocid="jobs.filter.tab">
           {(
             ["all", "full_time", "internship", "part_time"] as FilterType[]
           ).map((f) => (
@@ -208,7 +369,7 @@ export default function JobListings() {
       >
         {filtered.map((job, i) => {
           const typeInfo = JOB_TYPE_MAP[job.job_type] ?? {
-            label: job.job_type,
+            label: String(job.job_type),
             color: "bg-muted text-foreground border-border",
           };
           return (
@@ -250,21 +411,41 @@ export default function JobListings() {
                   <CardDescription className="text-sm leading-relaxed line-clamp-3">
                     {job.description}
                   </CardDescription>
-                  <Button
-                    size="sm"
-                    className="w-full gap-1.5 mt-auto"
-                    asChild
-                    data-ocid={`jobs.apply.button.${i + 1}`}
-                  >
-                    <a
-                      href={job.apply_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2 mt-auto pt-1">
+                    <Button
+                      size="sm"
+                      className="flex-1 gap-1.5"
+                      asChild
+                      data-ocid={`jobs.apply.button.${i + 1}`}
                     >
-                      Apply Now
-                      <ExternalLink className="w-3.5 h-3.5 ml-auto opacity-70" />
-                    </a>
-                  </Button>
+                      <a
+                        href={job.apply_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Apply Now
+                        <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                      </a>
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      className="flex-1 gap-1.5 bg-[#0077B5] hover:bg-[#006399] text-white border-0 shadow-sm"
+                      asChild
+                      data-ocid={`jobs.linkedin.button.${i + 1}`}
+                    >
+                      <a
+                        href={job.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <LinkedInIcon className="w-3.5 h-3.5" />
+                        LinkedIn
+                      </a>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
