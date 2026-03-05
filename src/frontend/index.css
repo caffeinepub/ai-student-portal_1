@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque[opsz,wdth,wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: url("/assets/fonts/Outfit[wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/assets/fonts/JetBrainsMono[wght].woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Light mode — clean slate with teal primary */
+    --background: 0.97 0.005 240;
+    --foreground: 0.15 0.02 250;
+    --card: 1 0 0;
+    --card-foreground: 0.15 0.02 250;
+    --popover: 1 0 0;
+    --popover-foreground: 0.15 0.02 250;
+    --primary: 0.55 0.18 195;
+    --primary-foreground: 1 0 0;
+    --secondary: 0.93 0.015 240;
+    --secondary-foreground: 0.25 0.03 250;
+    --muted: 0.93 0.01 240;
+    --muted-foreground: 0.5 0.02 240;
+    --accent: 0.75 0.14 55;
+    --accent-foreground: 0.12 0.02 50;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.88 0.02 240;
+    --input: 0.88 0.02 240;
+    --ring: 0.55 0.18 195;
+
+    --chart-1: 0.55 0.18 195;
+    --chart-2: 0.75 0.14 55;
+    --chart-3: 0.6 0.2 145;
+    --chart-4: 0.65 0.22 310;
+    --chart-5: 0.7 0.18 30;
+
+    --sidebar: 0.15 0.04 250;
+    --sidebar-foreground: 0.9 0.01 220;
+    --sidebar-primary: 0.55 0.18 195;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.22 0.04 250;
+    --sidebar-accent-foreground: 0.9 0.01 220;
+    --sidebar-border: 0.25 0.04 250;
+    --sidebar-ring: 0.55 0.18 195;
+
+    /* XP gradient tokens */
+    --xp-from: 0.75 0.14 55;
+    --xp-to: 0.65 0.22 30;
+  }
+
+  .dark {
+    --background: 0.12 0.03 250;
+    --foreground: 0.92 0.01 220;
+    --card: 0.17 0.03 250;
+    --card-foreground: 0.92 0.01 220;
+    --popover: 0.17 0.03 250;
+    --popover-foreground: 0.92 0.01 220;
+    --primary: 0.65 0.2 195;
+    --primary-foreground: 0.1 0.02 250;
+    --secondary: 0.22 0.04 250;
+    --secondary-foreground: 0.88 0.01 220;
+    --muted: 0.2 0.03 250;
+    --muted-foreground: 0.6 0.02 230;
+    --accent: 0.75 0.16 55;
+    --accent-foreground: 0.12 0.02 50;
+    --destructive: 0.65 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+    --border: 0.28 0.04 250;
+    --input: 0.28 0.04 250;
+    --ring: 0.65 0.2 195;
+
+    --chart-1: 0.65 0.2 195;
+    --chart-2: 0.75 0.16 55;
+    --chart-3: 0.65 0.22 145;
+    --chart-4: 0.7 0.24 310;
+    --chart-5: 0.75 0.2 30;
+
+    --sidebar: 0.1 0.03 255;
+    --sidebar-foreground: 0.88 0.01 220;
+    --sidebar-primary: 0.65 0.2 195;
+    --sidebar-primary-foreground: 0.1 0.02 250;
+    --sidebar-accent: 0.17 0.04 255;
+    --sidebar-accent-foreground: 0.88 0.01 220;
+    --sidebar-border: 0.2 0.04 255;
+    --sidebar-ring: 0.65 0.2 195;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+
+  code, pre, .font-mono {
+    @apply font-code;
+  }
+}
+
+@layer utilities {
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(oklch(var(--border) / 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(var(--border) / 0.4) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .card-glow {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .card-glow:hover {
+    box-shadow: 0 0 0 1px oklch(var(--primary) / 0.4), 0 8px 32px oklch(var(--primary) / 0.12);
+    transform: translateY(-2px);
+  }
+
+  .xp-badge {
+    background: linear-gradient(135deg, oklch(var(--xp-from)), oklch(var(--xp-to)));
+    color: white;
+    font-weight: 700;
+  }
+
+  .sidebar-glow-item {
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .code-editor {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    tab-size: 2;
+  }
+
+  .chat-bubble-user {
+    background: oklch(var(--primary) / 0.15);
+    border: 1px solid oklch(var(--primary) / 0.3);
+  }
+
+  .chat-bubble-ai {
+    background: oklch(var(--card));
+    border: 1px solid oklch(var(--border));
+  }
+}
