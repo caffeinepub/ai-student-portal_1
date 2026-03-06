@@ -6,21 +6,34 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
+import AuthProvider from "./components/AuthProvider";
 import Layout from "./components/Layout";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { useAuth } from "./hooks/useAuth";
 import AdminPanel from "./pages/AdminPanel";
 import ChatAssistant from "./pages/ChatAssistant";
 import CodingPractice from "./pages/CodingPractice";
 import Courses from "./pages/Courses";
 import Dashboard from "./pages/Dashboard";
 import JobListings from "./pages/JobListings";
+import LoginPage from "./pages/LoginPage";
 import MCQTests from "./pages/MCQTests";
 import ResumeBuilder from "./pages/ResumeBuilder";
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { isLoggedIn } = useAuth();
+  if (!isLoggedIn) return <LoginPage />;
+  return <>{children}</>;
+}
 
 const rootRoute = createRootRoute({
   component: () => (
     <ThemeProvider defaultTheme="dark" storageKey="student-portal-theme">
-      <Outlet />
+      <AuthProvider>
+        <AuthGate>
+          <Outlet />
+        </AuthGate>
+      </AuthProvider>
       <Toaster richColors position="top-right" />
     </ThemeProvider>
   ),

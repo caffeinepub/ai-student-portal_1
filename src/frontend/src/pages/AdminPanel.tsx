@@ -45,7 +45,6 @@ import {
   Briefcase,
   ClipboardList,
   Loader2,
-  LogIn,
   Plus,
   ShieldCheck,
   Trash2,
@@ -54,7 +53,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { DifficultyLevel, JobType } from "../backend.d";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useAuth } from "../hooks/useAuth";
 import {
   useCreateCourse,
   useCreateJobListing,
@@ -65,7 +64,6 @@ import {
   useGetAllCourses,
   useGetAllJobListings,
   useGetAllTestTopics,
-  useIsCallerAdmin,
 } from "../hooks/useQueries";
 
 // Course Form
@@ -461,64 +459,13 @@ function AddTopicDialog() {
 }
 
 export default function AdminPanel() {
-  const { login, loginStatus, identity } = useInternetIdentity();
-  const isLoggedIn = loginStatus === "success" && !!identity;
-  const isLoggingIn = loginStatus === "logging-in";
-
-  const { data: isAdmin, isLoading: checkingAdmin } = useIsCallerAdmin();
+  const { isAdmin, user } = useAuth();
   const { data: courses = [], isLoading: loadingCourses } = useGetAllCourses();
   const { data: jobs = [], isLoading: loadingJobs } = useGetAllJobListings();
   const { data: topics = [], isLoading: loadingTopics } = useGetAllTestTopics();
   const { mutate: deleteCourse } = useDeleteCourse();
   const { mutate: deleteJob } = useDeleteJobListing();
   const { mutate: deleteTopic } = useDeleteTestTopic();
-
-  // Not logged in
-  if (!isLoggedIn) {
-    return (
-      <div className="p-4 lg:p-8 max-w-xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center gap-6">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-          <ShieldCheck className="w-8 h-8 text-primary" />
-        </div>
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground mb-2">
-            Admin Panel
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Sign in with Internet Identity to access the admin panel and manage
-            courses, jobs, and MCQ topics.
-          </p>
-        </div>
-        <Button
-          onClick={() => login()}
-          disabled={isLoggingIn}
-          size="lg"
-          className="gap-2"
-          data-ocid="admin.login.button"
-        >
-          {isLoggingIn ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <LogIn className="w-4 h-4" />
-          )}
-          {isLoggingIn ? "Signing in..." : "Sign In to Continue"}
-        </Button>
-      </div>
-    );
-  }
-
-  // Checking admin status
-  if (checkingAdmin) {
-    return (
-      <div
-        className="p-8 flex items-center justify-center gap-2"
-        data-ocid="admin.loading_state"
-      >
-        <Loader2 className="w-5 h-5 animate-spin text-primary" />
-        <span className="text-muted-foreground">Verifying admin access...</span>
-      </div>
-    );
-  }
 
   // Not admin
   if (!isAdmin) {
@@ -532,9 +479,13 @@ export default function AdminPanel() {
             Access Denied
           </h2>
           <p className="text-muted-foreground text-sm">
-            You don&apos;t have admin access. Contact the system administrator
-            to request admin privileges.
+            This page is only accessible to the administrator account.
           </p>
+          {user && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Logged in as: {user.email}
+            </p>
+          )}
         </div>
         <Badge
           variant="destructive"

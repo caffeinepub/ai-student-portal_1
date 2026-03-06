@@ -9,18 +9,19 @@ import {
   FileText,
   GraduationCap,
   LayoutDashboard,
-  LogIn,
   LogOut,
   Menu,
   MessageSquare,
   Moon,
   ShieldCheck,
   Sun,
+  User,
   X,
   Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { useActor } from "../hooks/useActor";
+import { useAuth } from "../hooks/useAuth";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useTheme } from "./ThemeProvider";
 
@@ -67,13 +68,11 @@ function XPBadge() {
 
 export default function Layout() {
   const { theme, setTheme } = useTheme();
-  const { login, clear, loginStatus, identity } = useInternetIdentity();
+  useInternetIdentity();
+  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
-
-  const isLoggedIn = loginStatus === "success" && !!identity;
-  const isLoggingIn = loginStatus === "logging-in";
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -150,34 +149,28 @@ export default function Layout() {
 
         {/* Footer */}
         <div className="px-3 py-4 border-t border-sidebar-border space-y-2">
-          {isLoggedIn ? (
+          {user && (
             <div className="space-y-2">
-              <p className="text-xs text-sidebar-foreground/50 px-1 truncate">
-                {identity.getPrincipal().toString().slice(0, 20)}...
+              <div className="flex items-center gap-2 px-1">
+                <User className="w-3.5 h-3.5 text-sidebar-foreground/50 flex-shrink-0" />
+                <p className="text-xs text-sidebar-foreground/70 truncate font-medium">
+                  {user.name}
+                </p>
+              </div>
+              <p className="text-xs text-sidebar-foreground/40 px-1 truncate">
+                {user.email}
               </p>
               <Button
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground"
-                onClick={() => clear()}
+                onClick={() => logout()}
                 data-ocid="nav.logout.button"
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign Out
               </Button>
             </div>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground"
-              onClick={() => login()}
-              disabled={isLoggingIn}
-              data-ocid="nav.login.button"
-            >
-              <LogIn className="w-4 h-4 mr-2" />
-              {isLoggingIn ? "Signing in..." : "Sign In"}
-            </Button>
           )}
         </div>
       </aside>
@@ -219,29 +212,24 @@ export default function Layout() {
               )}
             </Button>
 
-            {!isLoggedIn && (
-              <Button
-                size="sm"
-                onClick={() => login()}
-                disabled={isLoggingIn}
-                className="hidden sm:flex"
-                data-ocid="header.login.button"
-              >
-                <LogIn className="w-3.5 h-3.5 mr-1.5" />
-                {isLoggingIn ? "Signing in..." : "Sign In"}
-              </Button>
-            )}
-            {isLoggedIn && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => clear()}
-                className="hidden sm:flex"
-                data-ocid="header.logout.button"
-              >
-                <LogOut className="w-3.5 h-3.5 mr-1.5" />
-                Sign Out
-              </Button>
+            {user && (
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted">
+                  <User className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-foreground max-w-[120px] truncate">
+                    {user.name}
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => logout()}
+                  data-ocid="header.logout.button"
+                >
+                  <LogOut className="w-3.5 h-3.5 mr-1.5" />
+                  Sign Out
+                </Button>
+              </div>
             )}
           </div>
         </header>
