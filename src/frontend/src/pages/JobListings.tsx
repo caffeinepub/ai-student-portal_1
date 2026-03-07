@@ -29,7 +29,7 @@ type JobListing = {
   location: string;
   description: string;
   apply_url: string;
-  linkedin_url: string;
+  linkedin_url?: string;
   job_type: JobType;
   time: bigint;
 };
@@ -198,34 +198,13 @@ const JOB_TYPE_MAP: Record<string, { label: string; color: string }> = {
 
 type FilterType = "all" | "full_time" | "internship" | "part_time";
 
-/** LinkedIn "in" icon — lucide-react doesn't ship a Linkedin icon in all versions */
-function LinkedInIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-    </svg>
-  );
-}
-
 export default function JobListings() {
   const { data: backendJobs = [], isLoading } = useGetAllJobListings();
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
 
-  // Merge backend jobs with linkedin_url fallback
-  const rawJobs = backendJobs.length > 0 ? backendJobs : FALLBACK_JOBS;
-  const jobs: JobListing[] = rawJobs.map((j: any) => ({
-    ...j,
-    linkedin_url:
-      j.linkedin_url ||
-      `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(j.title)}&location=India`,
-  }));
+  const jobs: JobListing[] =
+    backendJobs.length > 0 ? backendJobs : FALLBACK_JOBS;
 
   const internshipCount = jobs.filter(
     (j) => j.job_type === JobType.internship,
@@ -291,7 +270,7 @@ export default function JobListings() {
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-snug">
                 Explore internship opportunities from top companies — apply
-                directly via LinkedIn or company portal.
+                directly via the company portal.
               </p>
             </div>
           </div>
@@ -427,22 +406,6 @@ export default function JobListings() {
                       >
                         Apply Now
                         <ExternalLink className="w-3.5 h-3.5 opacity-70" />
-                      </a>
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      className="flex-1 gap-1.5 bg-[#0077B5] hover:bg-[#006399] text-white border-0 shadow-sm"
-                      asChild
-                      data-ocid={`jobs.linkedin.button.${i + 1}`}
-                    >
-                      <a
-                        href={job.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <LinkedInIcon className="w-3.5 h-3.5" />
-                        LinkedIn
                       </a>
                     </Button>
                   </div>

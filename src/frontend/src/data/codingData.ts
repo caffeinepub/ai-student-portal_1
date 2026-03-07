@@ -2883,6 +2883,314 @@ const advJavaProblems: Problem[] = [
   },
 ];
 
+// ─── PROGRAMMING ─────────────────────────────────────────────────────────────
+const programmingProblems: Problem[] = [
+  // Easy (10)
+  {
+    id: "prog-e1",
+    title: "Say Hello",
+    difficulty: "Easy",
+    topic: "Basics",
+    description:
+      "Write a function that returns the string 'Hello, World!'.\n\nExpected:\nhello() → 'Hello, World!'",
+    hint: "Just return the string literal.",
+    starterCode: "def hello():\n    pass",
+  },
+  {
+    id: "prog-e2",
+    title: "Add Two Numbers",
+    difficulty: "Easy",
+    topic: "Basics",
+    description:
+      "Write a function that returns the sum of two numbers.\n\nExample:\nadd(3, 4) → 7",
+    hint: "Use the + operator.",
+    starterCode: "def add(a, b):\n    pass",
+  },
+  {
+    id: "prog-e3",
+    title: "Is Even",
+    difficulty: "Easy",
+    topic: "Conditionals",
+    description:
+      "Return True if n is even, False otherwise.\n\nExample:\nis_even(4) → True\nis_even(7) → False",
+    hint: "Use the modulo operator %.",
+    starterCode: "def is_even(n):\n    pass",
+  },
+  {
+    id: "prog-e4",
+    title: "Maximum of Three",
+    difficulty: "Easy",
+    topic: "Conditionals",
+    description:
+      "Return the largest of three numbers.\n\nExample:\nmax_of_three(3, 7, 5) → 7",
+    hint: "Use if-elif-else or the max() function.",
+    starterCode: "def max_of_three(a, b, c):\n    pass",
+  },
+  {
+    id: "prog-e5",
+    title: "Count Down",
+    difficulty: "Easy",
+    topic: "Loops",
+    description:
+      "Return a list counting down from n to 1.\n\nExample:\ncount_down(5) → [5, 4, 3, 2, 1]",
+    hint: "Use range(n, 0, -1).",
+    starterCode: "def count_down(n):\n    pass",
+  },
+  {
+    id: "prog-e6",
+    title: "Sum of List",
+    difficulty: "Easy",
+    topic: "Arrays",
+    description:
+      "Return the sum of all numbers in a list.\n\nExample:\nlist_sum([1, 2, 3, 4, 5]) → 15",
+    hint: "Use a loop or built-in sum().",
+    starterCode: "def list_sum(nums):\n    pass",
+  },
+  {
+    id: "prog-e7",
+    title: "Reverse String",
+    difficulty: "Easy",
+    topic: "Strings",
+    description:
+      "Return the reverse of a string.\n\nExample:\nreverse('hello') → 'olleh'",
+    hint: "Use slicing s[::-1] or a loop.",
+    starterCode: "def reverse(s):\n    pass",
+  },
+  {
+    id: "prog-e8",
+    title: "Count Vowels",
+    difficulty: "Easy",
+    topic: "Strings",
+    description:
+      "Count the number of vowels in a string.\n\nExample:\ncount_vowels('hello') → 2",
+    hint: "Check each character against 'aeiouAEIOU'.",
+    starterCode: "def count_vowels(s):\n    pass",
+  },
+  {
+    id: "prog-e9",
+    title: "Absolute Value",
+    difficulty: "Easy",
+    topic: "Math",
+    description:
+      "Return the absolute value without using abs().\n\nExample:\nmy_abs(-7) → 7\nmy_abs(3) → 3",
+    hint: "If n < 0, return -n.",
+    starterCode: "def my_abs(n):\n    pass",
+  },
+  {
+    id: "prog-e10",
+    title: "Is Palindrome",
+    difficulty: "Easy",
+    topic: "Strings",
+    description:
+      "Return True if a string is a palindrome.\n\nExample:\nis_palindrome('racecar') → True\nis_palindrome('hello') → False",
+    hint: "Compare string with its reverse.",
+    starterCode: "def is_palindrome(s):\n    pass",
+  },
+
+  // Medium (10)
+  {
+    id: "prog-m1",
+    title: "Fibonacci Sequence",
+    difficulty: "Medium",
+    topic: "Recursion",
+    description: "Return the nth Fibonacci number.\n\nExample:\nfib(7) → 13",
+    hint: "Base cases: fib(0)=0, fib(1)=1. Recursive: fib(n-1)+fib(n-2).",
+    starterCode: "def fib(n):\n    pass",
+  },
+  {
+    id: "prog-m2",
+    title: "Find Duplicates",
+    difficulty: "Medium",
+    topic: "Arrays",
+    description:
+      "Return a list of duplicate values in an array.\n\nExample:\nfind_duplicates([1,2,3,2,4,3]) → [2, 3]",
+    hint: "Use a set to track seen values.",
+    starterCode: "def find_duplicates(nums):\n    pass",
+  },
+  {
+    id: "prog-m3",
+    title: "Caesar Cipher",
+    difficulty: "Medium",
+    topic: "Strings",
+    description:
+      "Encode a string using Caesar cipher with shift k.\n\nExample:\ncaesar('abc', 3) → 'def'",
+    hint: "Use ord() and chr() to shift characters.",
+    starterCode: "def caesar(s, k):\n    pass",
+  },
+  {
+    id: "prog-m4",
+    title: "Binary Search",
+    difficulty: "Medium",
+    topic: "Search",
+    description:
+      "Implement binary search. Return index of target or -1.\n\nExample:\nbinary_search([1,3,5,7,9], 5) → 2",
+    hint: "Use left/right pointers and compute mid.",
+    starterCode: "def binary_search(nums, target):\n    return -1",
+  },
+  {
+    id: "prog-m5",
+    title: "FizzBuzz",
+    difficulty: "Medium",
+    topic: "Loops",
+    description:
+      "Return a list from 1 to n: 'Fizz' for multiples of 3, 'Buzz' for 5, 'FizzBuzz' for both.\n\nExample:\nfizzbuzz(15) → ['1','2','Fizz',...,'FizzBuzz']",
+    hint: "Use modulo % to check divisibility.",
+    starterCode: "def fizzbuzz(n):\n    pass",
+  },
+  {
+    id: "prog-m6",
+    title: "Flatten List",
+    difficulty: "Medium",
+    topic: "Recursion",
+    description:
+      "Flatten a nested list.\n\nExample:\nflatten([1,[2,3],[4,[5,6]]]) → [1,2,3,4,5,6]",
+    hint: "Recursively flatten each sub-list.",
+    starterCode: "def flatten(lst):\n    pass",
+  },
+  {
+    id: "prog-m7",
+    title: "Word Count",
+    difficulty: "Medium",
+    topic: "Dictionaries",
+    description:
+      "Count the frequency of each word in a sentence.\n\nExample:\nword_count('hello world hello') → {'hello':2,'world':1}",
+    hint: "Split sentence, use dict to count.",
+    starterCode: "def word_count(sentence):\n    pass",
+  },
+  {
+    id: "prog-m8",
+    title: "Merge Sorted Arrays",
+    difficulty: "Medium",
+    topic: "Arrays",
+    description:
+      "Merge two sorted arrays into one sorted array.\n\nExample:\nmerge([1,3,5],[2,4,6]) → [1,2,3,4,5,6]",
+    hint: "Use two pointers.",
+    starterCode: "def merge(a, b):\n    pass",
+  },
+  {
+    id: "prog-m9",
+    title: "Remove Duplicates",
+    difficulty: "Medium",
+    topic: "Arrays",
+    description:
+      "Remove duplicate values while preserving order.\n\nExample:\nremove_dups([1,2,2,3,1,4]) → [1,2,3,4]",
+    hint: "Use a set to track seen values.",
+    starterCode: "def remove_dups(lst):\n    pass",
+  },
+  {
+    id: "prog-m10",
+    title: "Rotate Array",
+    difficulty: "Medium",
+    topic: "Arrays",
+    description:
+      "Rotate array k positions to the right.\n\nExample:\nrotate([1,2,3,4,5], 2) → [4,5,1,2,3]",
+    hint: "Slice: nums[-k:] + nums[:-k].",
+    starterCode: "def rotate(nums, k):\n    pass",
+  },
+
+  // Hard (10)
+  {
+    id: "prog-h1",
+    title: "Two Sum",
+    difficulty: "Hard",
+    topic: "Arrays",
+    description:
+      "Return indices of two numbers that sum to target.\n\nExample:\ntwo_sum([2,7,11,15], 9) → [0,1]",
+    hint: "Use a hash map for complement lookups.",
+    starterCode: "def two_sum(nums, target):\n    pass",
+  },
+  {
+    id: "prog-h2",
+    title: "Longest Palindrome",
+    difficulty: "Hard",
+    topic: "Strings",
+    description:
+      "Find the longest palindromic substring.\n\nExample:\nlongest_palindrome('babad') → 'bab'",
+    hint: "Expand around each center character.",
+    starterCode: "def longest_palindrome(s):\n    return ''",
+  },
+  {
+    id: "prog-h3",
+    title: "Climbing Stairs",
+    difficulty: "Hard",
+    topic: "Dynamic Programming",
+    description:
+      "Count distinct ways to climb n steps (1 or 2 at a time).\n\nExample:\nclimb(5) → 8",
+    hint: "This is Fibonacci: dp[n] = dp[n-1] + dp[n-2].",
+    starterCode: "def climb(n):\n    pass",
+  },
+  {
+    id: "prog-h4",
+    title: "Valid Brackets",
+    difficulty: "Hard",
+    topic: "Stacks",
+    description:
+      "Return True if bracket string is valid.\n\nExample:\nvalid('()[]{}') → True\nvalid('([)]') → False",
+    hint: "Push open, pop and verify close brackets.",
+    starterCode: "def valid(s):\n    pass",
+  },
+  {
+    id: "prog-h5",
+    title: "Maximum Subarray",
+    difficulty: "Hard",
+    topic: "Dynamic Programming",
+    description:
+      "Find max sum of a contiguous subarray (Kadane's algorithm).\n\nExample:\nmax_subarray([-2,1,-3,4,-1,2,1,-5,4]) → 6",
+    hint: "Track current sum and max sum.",
+    starterCode: "def max_subarray(nums):\n    pass",
+  },
+  {
+    id: "prog-h6",
+    title: "Longest Common Subsequence",
+    difficulty: "Hard",
+    topic: "Dynamic Programming",
+    description:
+      "Find length of longest common subsequence.\n\nExample:\nlcs('ABCBDAB','BDCABA') → 4",
+    hint: "Use a 2D DP table.",
+    starterCode: "def lcs(s1, s2):\n    return 0",
+  },
+  {
+    id: "prog-h7",
+    title: "Number of Islands",
+    difficulty: "Hard",
+    topic: "Graphs",
+    description:
+      "Count the number of islands in a grid of '1's and '0's.\n\nExample:\ngrid=[['1','1','0'],['0','1','0'],['0','0','1']] → 2",
+    hint: "Use DFS to mark visited land cells.",
+    starterCode: "def num_islands(grid):\n    return 0",
+  },
+  {
+    id: "prog-h8",
+    title: "Decode Ways",
+    difficulty: "Hard",
+    topic: "Dynamic Programming",
+    description:
+      "Count ways to decode a digit string where A=1,...,Z=26.\n\nExample:\ndecode('12') → 2",
+    hint: "DP: check single and double digit at each step.",
+    starterCode: "def decode(s):\n    return 0",
+  },
+  {
+    id: "prog-h9",
+    title: "Group Anagrams",
+    difficulty: "Hard",
+    topic: "Strings",
+    description:
+      "Group strings that are anagrams of each other.\n\nExample:\ngroup(['eat','tea','tan','ate','nat','bat']) → [['eat','tea','ate'],['tan','nat'],['bat']]",
+    hint: "Use sorted string as key in a dict.",
+    starterCode: "def group(strs):\n    return []",
+  },
+  {
+    id: "prog-h10",
+    title: "Trapping Rain Water",
+    difficulty: "Hard",
+    topic: "Arrays",
+    description:
+      "Compute total water trapped between bars.\n\nExample:\ntrap([0,1,0,2,1,0,1,3,2,1,2,1]) → 6",
+    hint: "Use two-pointer approach with leftMax and rightMax.",
+    starterCode: "def trap(height):\n    return 0",
+  },
+];
+
 export const COURSES: Course[] = [
   { id: "java", title: "Java", icon: "☕", problems: javaProblems },
   { id: "python", title: "Python", icon: "🐍", problems: pythonProblems },
@@ -2897,5 +3205,11 @@ export const COURSES: Course[] = [
     title: "Advanced Java",
     icon: "🚀",
     problems: advJavaProblems,
+  },
+  {
+    id: "programming",
+    title: "Programming",
+    icon: "💻",
+    problems: programmingProblems,
   },
 ];

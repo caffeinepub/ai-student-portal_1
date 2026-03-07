@@ -22,10 +22,60 @@ const DIFF_COLORS = {
   Hard: "bg-red-500/15 text-red-400 border-red-500/30",
 };
 
+type Language = "Java" | "Python" | "JavaScript" | "C" | "SQL";
+
+const LANGUAGE_STARTERS: Record<
+  Language,
+  (title: string, topic: string) => string
+> = {
+  Java: (title, topic) =>
+    `// Java - ${title} (${topic})\npublic class Solution {\n    public static void main(String[] args) {\n        // Write your Java solution here\n    }\n}`,
+  Python: (title, topic) =>
+    `# Python - ${title} (${topic})\n\ndef solution():\n    # Write your Python solution here\n    pass\n\nsolution()`,
+  JavaScript: (title, topic) =>
+    `// JavaScript - ${title} (${topic})\n\nfunction solution() {\n    // Write your JavaScript solution here\n}\n\nsolution();`,
+  C: (title, topic) =>
+    `// C - ${title} (${topic})\n#include <stdio.h>\n\nint main() {\n    // Write your C solution here\n    return 0;\n}`,
+  SQL: (title, topic) =>
+    `-- SQL - ${title} (${topic})\n-- Write your SQL query here\nSELECT * FROM table_name;`,
+};
+
+const LANGUAGE_COLORS: Record<Language, string> = {
+  Java: "bg-orange-500/15 text-orange-400 border-orange-500/30 hover:bg-orange-500/25",
+  Python:
+    "bg-blue-500/15 text-blue-400 border-blue-500/30 hover:bg-blue-500/25",
+  JavaScript:
+    "bg-yellow-500/15 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/25",
+  C: "bg-gray-500/15 text-gray-300 border-gray-500/30 hover:bg-gray-500/25",
+  SQL: "bg-green-500/15 text-green-400 border-green-500/30 hover:bg-green-500/25",
+};
+
+const LANGUAGE_ACTIVE: Record<Language, string> = {
+  Java: "bg-orange-500 text-white border-orange-500",
+  Python: "bg-blue-500 text-white border-blue-500",
+  JavaScript: "bg-yellow-500 text-black border-yellow-500",
+  C: "bg-gray-500 text-white border-gray-500",
+  SQL: "bg-green-500 text-white border-green-500",
+};
+
+// Language badge styles for problem cards (smaller, non-interactive)
+const LANG_BADGE: Record<Language, string> = {
+  Java: "bg-orange-500/10 text-orange-400 border-orange-500/25",
+  Python: "bg-blue-500/10 text-blue-400 border-blue-500/25",
+  JavaScript: "bg-yellow-500/10 text-yellow-500 border-yellow-500/25",
+  C: "bg-gray-500/10 text-gray-400 border-gray-500/25",
+  SQL: "bg-green-500/10 text-green-400 border-green-500/25",
+};
+
+const ALL_LANGUAGES: Language[] = ["Java", "Python", "JavaScript", "C", "SQL"];
+
 export default function CodingPractice() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
-  const [code, setCode] = useState("");
+  const [language, setLanguage] = useState<Language>("Java");
+  const [codeByLang, setCodeByLang] = useState<
+    Partial<Record<Language, string>>
+  >({});
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [solved, setSolved] = useState<Set<string>>(new Set());
@@ -33,9 +83,24 @@ export default function CodingPractice() {
     "All",
   );
 
+  const currentCode = selectedProblem
+    ? (codeByLang[language] ??
+      LANGUAGE_STARTERS[language](selectedProblem.title, selectedProblem.topic))
+    : "";
+
+  function setCode(val: string) {
+    if (!selectedProblem) return;
+    setCodeByLang((prev) => ({ ...prev, [language]: val }));
+  }
+
+  function switchLanguage(lang: Language) {
+    setLanguage(lang);
+    setOutput("");
+  }
+
   function openProblem(p: Problem) {
     setSelectedProblem(p);
-    setCode(p.starterCode);
+    setCodeByLang({});
     setOutput("");
   }
 
@@ -44,7 +109,7 @@ export default function CodingPractice() {
     setIsRunning(true);
     setTimeout(() => {
       setOutput(
-        `Running ${selectedProblem.title}...\n✓ Your solution has been submitted\n✓ Test cases evaluated\n\nNote: This is a simulated environment.\nImplement your solution and test your logic! 🚀`,
+        `Running ${selectedProblem.title} in ${language}...\n✓ Your solution has been submitted\n✓ Test cases evaluated\n\nLanguage: ${language}\nNote: This is a simulated environment.\nImplement your solution and test your logic! 🚀`,
       );
       setSolved((prev) => new Set([...prev, selectedProblem.id]));
       setIsRunning(false);
@@ -179,6 +244,17 @@ export default function CodingPractice() {
                           Hard {stats.hard}
                         </span>
                       </div>
+                      {/* Language indicators on course card */}
+                      <div className="flex flex-wrap gap-1">
+                        {ALL_LANGUAGES.map((lang) => (
+                          <span
+                            key={lang}
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${LANG_BADGE[lang]}`}
+                          >
+                            {lang}
+                          </span>
+                        ))}
+                      </div>
                       <Button
                         size="sm"
                         className="w-full"
@@ -239,7 +315,7 @@ export default function CodingPractice() {
                   <Card className="card-glow">
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="flex-1 min-w-0">
                           <p className="text-xs text-muted-foreground mb-1">
                             {prob.topic}
                           </p>
@@ -249,6 +325,18 @@ export default function CodingPractice() {
                             )}
                             {prob.title}
                           </CardTitle>
+                          {/* Language indicators */}
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {ALL_LANGUAGES.map((lang) => (
+                              <span
+                                key={lang}
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${LANG_BADGE[lang]}`}
+                                title={`Solve in ${lang}`}
+                              >
+                                {lang}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border flex-shrink-0 ${DIFF_COLORS[prob.difficulty]}`}
@@ -310,7 +398,7 @@ export default function CodingPractice() {
             <div className="space-y-3">
               <Card>
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <CardTitle className="text-base font-display">
                       Code Editor
                     </CardTitle>
@@ -318,12 +406,35 @@ export default function CodingPractice() {
                       {selectedCourse?.title ?? "Code"}
                     </Badge>
                   </div>
+                  {/* Language Tabs */}
+                  <div
+                    className="flex flex-wrap gap-1.5 pt-2"
+                    data-ocid="coding.language.tab"
+                  >
+                    {(
+                      ["Java", "Python", "JavaScript", "C", "SQL"] as Language[]
+                    ).map((lang) => (
+                      <button
+                        type="button"
+                        key={lang}
+                        onClick={() => switchLanguage(lang)}
+                        className={`px-3 py-1 rounded-md text-xs font-semibold border transition-all ${
+                          language === lang
+                            ? LANGUAGE_ACTIVE[lang]
+                            : LANGUAGE_COLORS[lang]
+                        }`}
+                        data-ocid={`coding.lang-${lang.toLowerCase()}.button`}
+                      >
+                        {lang}
+                      </button>
+                    ))}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <Textarea
-                    value={code}
+                    value={currentCode}
                     onChange={(e) => setCode(e.target.value)}
-                    className="code-editor min-h-64 resize-y bg-muted/50 border-border"
+                    className="code-editor min-h-64 resize-y bg-muted/50 border-border font-mono text-sm"
                     spellCheck={false}
                     data-ocid="coding.editor"
                   />

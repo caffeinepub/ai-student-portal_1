@@ -121,6 +121,17 @@ const FALLBACK_COURSES: Course[] = [
     thumbnail_url: "",
     difficulty: DifficultyLevel.advanced,
   },
+  {
+    id: "10",
+    title: "Programming",
+    description:
+      "Programming Full Course — core programming concepts, logic building, and practical coding skills for beginners and beyond.",
+    category: "Programming",
+    youtube_url:
+      "https://www.youtube.com/watch?v=VHbSopMyc4M&list=PLBlnK6fEyqRjKA_NuK9mHmlk0dZzuP1P5",
+    thumbnail_url: "",
+    difficulty: DifficultyLevel.beginner,
+  },
 ];
 
 const DIFFICULTY_COLORS = {
