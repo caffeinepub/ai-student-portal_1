@@ -23,6 +23,17 @@ export const JobType = IDL.Variant({
   'part_time' : IDL.Null,
   'full_time' : IDL.Null,
 });
+export const Time = IDL.Int;
+export const JobApplication = IDL.Record({
+  'id' : IDL.Text,
+  'principal' : IDL.Principal,
+  'name' : IDL.Text,
+  'jobId' : IDL.Text,
+  'coverLetter' : IDL.Text,
+  'email' : IDL.Text,
+  'timestamp' : Time,
+  'phone' : IDL.Text,
+});
 export const Course = IDL.Record({
   'id' : IDL.Text,
   'title' : IDL.Text,
@@ -32,7 +43,6 @@ export const Course = IDL.Record({
   'thumbnail_url' : IDL.Text,
   'category' : IDL.Text,
 });
-export const Time = IDL.Int;
 export const JobListing = IDL.Record({
   'id' : IDL.Text,
   'title' : IDL.Text,
@@ -49,6 +59,14 @@ export const MCQQuestion = IDL.Record({
   'topic_id' : IDL.Text,
   'correct_option_index' : IDL.Nat,
   'options' : IDL.Vec(IDL.Text),
+});
+export const StudentAccount = IDL.Record({
+  'name' : IDL.Text,
+  'securityQuestion' : IDL.Text,
+  'email' : IDL.Text,
+  'passwordHash' : IDL.Text,
+  'securityAnswerHash' : IDL.Text,
+  'registeredAt' : Time,
 });
 export const TestTopic = IDL.Record({
   'id' : IDL.Text,
@@ -90,6 +108,11 @@ export const ResumeProfile = IDL.Record({
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'applyForJob' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Text],
+      [],
+    ),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'createCourse' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, DifficultyLevel],
@@ -110,21 +133,32 @@ export const idlService = IDL.Service({
   'deleteCourse' : IDL.Func([IDL.Text], [], []),
   'deleteJobListing' : IDL.Func([IDL.Text], [], []),
   'deleteQuestion' : IDL.Func([IDL.Text], [], []),
+  'deleteStudent' : IDL.Func([IDL.Text], [], []),
   'deleteTestTopic' : IDL.Func([IDL.Text], [], []),
+  'getAllApplications' : IDL.Func([], [IDL.Vec(JobApplication)], ['query']),
   'getAllCourses' : IDL.Func([], [IDL.Vec(Course)], ['query']),
   'getAllJobListings' : IDL.Func([], [IDL.Vec(JobListing)], ['query']),
   'getAllQuestions' : IDL.Func([], [IDL.Vec(MCQQuestion)], ['query']),
+  'getAllStudents' : IDL.Func([], [IDL.Vec(StudentAccount)], []),
   'getAllTestTopics' : IDL.Func([], [IDL.Vec(TestTopic)], ['query']),
+  'getApplicationsByJob' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(JobApplication)],
+      ['query'],
+    ),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCourse' : IDL.Func([IDL.Text], [IDL.Opt(Course)], ['query']),
   'getJobListing' : IDL.Func([IDL.Text], [IDL.Opt(JobListing)], ['query']),
+  'getMyApplications' : IDL.Func([], [IDL.Vec(JobApplication)], ['query']),
   'getQuestion' : IDL.Func([IDL.Text], [IDL.Opt(MCQQuestion)], ['query']),
   'getQuestionsByTopic' : IDL.Func(
       [IDL.Text],
       [IDL.Vec(MCQQuestion)],
       ['query'],
     ),
+  'getSecurityQuestion' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
+  'getStudentCount' : IDL.Func([], [IDL.Nat], ['query']),
   'getTestTopic' : IDL.Func([IDL.Text], [IDL.Opt(TestTopic)], ['query']),
   'getUserCourseProgress' : IDL.Func(
       [IDL.Principal],
@@ -143,8 +177,36 @@ export const idlService = IDL.Service({
     ),
   'getUserXP' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'loginStudent' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Opt(StudentAccount)],
+      [],
+    ),
   'recordCourseCompletion' : IDL.Func([IDL.Text], [], []),
   'recordQuizAttempt' : IDL.Func([IDL.Text, IDL.Nat], [], []),
+  'registerStudent' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [
+        IDL.Variant({
+          'ok' : IDL.Null,
+          'emailTaken' : IDL.Null,
+          'invalidInput' : IDL.Null,
+        }),
+      ],
+      [],
+    ),
+  'resetPasswordWithSecurityAnswer' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text],
+      [
+        IDL.Variant({
+          'ok' : IDL.Null,
+          'notFound' : IDL.Null,
+          'rateLimited' : IDL.Null,
+          'wrongAnswer' : IDL.Null,
+        }),
+      ],
+      [],
+    ),
   'resumeProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(ResumeProfile)],
@@ -197,6 +259,17 @@ export const idlFactory = ({ IDL }) => {
     'part_time' : IDL.Null,
     'full_time' : IDL.Null,
   });
+  const Time = IDL.Int;
+  const JobApplication = IDL.Record({
+    'id' : IDL.Text,
+    'principal' : IDL.Principal,
+    'name' : IDL.Text,
+    'jobId' : IDL.Text,
+    'coverLetter' : IDL.Text,
+    'email' : IDL.Text,
+    'timestamp' : Time,
+    'phone' : IDL.Text,
+  });
   const Course = IDL.Record({
     'id' : IDL.Text,
     'title' : IDL.Text,
@@ -206,7 +279,6 @@ export const idlFactory = ({ IDL }) => {
     'thumbnail_url' : IDL.Text,
     'category' : IDL.Text,
   });
-  const Time = IDL.Int;
   const JobListing = IDL.Record({
     'id' : IDL.Text,
     'title' : IDL.Text,
@@ -223,6 +295,14 @@ export const idlFactory = ({ IDL }) => {
     'topic_id' : IDL.Text,
     'correct_option_index' : IDL.Nat,
     'options' : IDL.Vec(IDL.Text),
+  });
+  const StudentAccount = IDL.Record({
+    'name' : IDL.Text,
+    'securityQuestion' : IDL.Text,
+    'email' : IDL.Text,
+    'passwordHash' : IDL.Text,
+    'securityAnswerHash' : IDL.Text,
+    'registeredAt' : Time,
   });
   const TestTopic = IDL.Record({
     'id' : IDL.Text,
@@ -264,6 +344,11 @@ export const idlFactory = ({ IDL }) => {
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'applyForJob' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Text],
+        [],
+      ),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'createCourse' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, DifficultyLevel],
@@ -284,21 +369,36 @@ export const idlFactory = ({ IDL }) => {
     'deleteCourse' : IDL.Func([IDL.Text], [], []),
     'deleteJobListing' : IDL.Func([IDL.Text], [], []),
     'deleteQuestion' : IDL.Func([IDL.Text], [], []),
+    'deleteStudent' : IDL.Func([IDL.Text], [], []),
     'deleteTestTopic' : IDL.Func([IDL.Text], [], []),
+    'getAllApplications' : IDL.Func([], [IDL.Vec(JobApplication)], ['query']),
     'getAllCourses' : IDL.Func([], [IDL.Vec(Course)], ['query']),
     'getAllJobListings' : IDL.Func([], [IDL.Vec(JobListing)], ['query']),
     'getAllQuestions' : IDL.Func([], [IDL.Vec(MCQQuestion)], ['query']),
+    'getAllStudents' : IDL.Func([], [IDL.Vec(StudentAccount)], []),
     'getAllTestTopics' : IDL.Func([], [IDL.Vec(TestTopic)], ['query']),
+    'getApplicationsByJob' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(JobApplication)],
+        ['query'],
+      ),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCourse' : IDL.Func([IDL.Text], [IDL.Opt(Course)], ['query']),
     'getJobListing' : IDL.Func([IDL.Text], [IDL.Opt(JobListing)], ['query']),
+    'getMyApplications' : IDL.Func([], [IDL.Vec(JobApplication)], ['query']),
     'getQuestion' : IDL.Func([IDL.Text], [IDL.Opt(MCQQuestion)], ['query']),
     'getQuestionsByTopic' : IDL.Func(
         [IDL.Text],
         [IDL.Vec(MCQQuestion)],
         ['query'],
       ),
+    'getSecurityQuestion' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(IDL.Text)],
+        ['query'],
+      ),
+    'getStudentCount' : IDL.Func([], [IDL.Nat], ['query']),
     'getTestTopic' : IDL.Func([IDL.Text], [IDL.Opt(TestTopic)], ['query']),
     'getUserCourseProgress' : IDL.Func(
         [IDL.Principal],
@@ -317,8 +417,36 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getUserXP' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'loginStudent' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Opt(StudentAccount)],
+        [],
+      ),
     'recordCourseCompletion' : IDL.Func([IDL.Text], [], []),
     'recordQuizAttempt' : IDL.Func([IDL.Text, IDL.Nat], [], []),
+    'registerStudent' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [
+          IDL.Variant({
+            'ok' : IDL.Null,
+            'emailTaken' : IDL.Null,
+            'invalidInput' : IDL.Null,
+          }),
+        ],
+        [],
+      ),
+    'resetPasswordWithSecurityAnswer' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text],
+        [
+          IDL.Variant({
+            'ok' : IDL.Null,
+            'notFound' : IDL.Null,
+            'rateLimited' : IDL.Null,
+            'wrongAnswer' : IDL.Null,
+          }),
+        ],
+        [],
+      ),
     'resumeProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(ResumeProfile)],

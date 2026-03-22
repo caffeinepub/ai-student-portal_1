@@ -43,16 +43,21 @@ import {
   AlertCircle,
   BookOpen,
   Briefcase,
+  CalendarDays,
+  CheckCircle2,
   ClipboardList,
+  FileText,
   Loader2,
   Plus,
   ShieldCheck,
   Trash2,
+  Users,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { DifficultyLevel, JobType } from "../backend.d";
+import type { StudentAccount } from "../backend.d";
 import { useAuth } from "../hooks/useAuth";
 import {
   useCreateCourse,
@@ -60,9 +65,12 @@ import {
   useCreateTestTopic,
   useDeleteCourse,
   useDeleteJobListing,
+  useDeleteStudent,
   useDeleteTestTopic,
+  useGetAllApplications,
   useGetAllCourses,
   useGetAllJobListings,
+  useGetAllStudents,
   useGetAllTestTopics,
 } from "../hooks/useQueries";
 
@@ -463,9 +471,15 @@ export default function AdminPanel() {
   const { data: courses = [], isLoading: loadingCourses } = useGetAllCourses();
   const { data: jobs = [], isLoading: loadingJobs } = useGetAllJobListings();
   const { data: topics = [], isLoading: loadingTopics } = useGetAllTestTopics();
+  const { data: students = [], isLoading: loadingStudents } =
+    useGetAllStudents();
   const { mutate: deleteCourse } = useDeleteCourse();
   const { mutate: deleteJob } = useDeleteJobListing();
   const { mutate: deleteTopic } = useDeleteTestTopic();
+  const { mutate: deleteStudent } = useDeleteStudent();
+  const { data: allApplications = [], isLoading: loadingApplications } =
+    useGetAllApplications();
+  const [appJobFilter, setAppJobFilter] = useState<string>("all");
 
   // Not admin
   if (!isAdmin) {
@@ -548,6 +562,22 @@ export default function AdminPanel() {
           >
             <ClipboardList className="w-4 h-4" />
             MCQ Topics ({topics.length})
+          </TabsTrigger>
+          <TabsTrigger
+            value="students"
+            className="gap-1.5"
+            data-ocid="admin.students.tab"
+          >
+            <Users className="w-4 h-4" />
+            Students ({students.length})
+          </TabsTrigger>
+          <TabsTrigger
+            value="applications"
+            className="gap-1.5"
+            data-ocid="admin.applications.tab"
+          >
+            <FileText className="w-4 h-4" />
+            Applications ({allApplications.length})
           </TabsTrigger>
         </TabsList>
 
@@ -880,6 +910,218 @@ export default function AdminPanel() {
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        {/* Students Tab */}
+        <TabsContent value="students" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-display">
+                  Registered Students
+                </CardTitle>
+                <Badge variant="secondary" className="text-xs">
+                  {students.length} total
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingStudents ? (
+                <div
+                  className="flex items-center gap-2 text-muted-foreground py-4"
+                  data-ocid="admin.students.loading_state"
+                >
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Loading students...</span>
+                </div>
+              ) : students.length === 0 ? (
+                <div
+                  className="text-center py-8 text-muted-foreground"
+                  data-ocid="admin.students.empty_state"
+                >
+                  <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No students registered yet.</p>
+                </div>
+              ) : (
+                <Table data-ocid="admin.students.table">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Registered At</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {students.map((account: StudentAccount, i: number) => (
+                      <TableRow
+                        key={account.email}
+                        data-ocid={`admin.students.row.${i + 1}`}
+                      >
+                        <TableCell className="font-medium text-sm">
+                          {account.name}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {account.email}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(
+                            Number(account.registeredAt / BigInt(1_000_000)),
+                          ).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive h-8 w-8"
+                                data-ocid={`admin.students.delete_button.${i + 1}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent data-ocid="admin.student-delete.dialog">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Delete Student Account?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently remove &quot;
+                                  {account.name}&quot; ({account.email}) from
+                                  the system. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel data-ocid="admin.student-delete.cancel_button">
+                                  Cancel
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => {
+                                    deleteStudent(account.email, {
+                                      onSuccess: () =>
+                                        toast.success(
+                                          "Student account deleted",
+                                        ),
+                                      onError: () =>
+                                        toast.error("Failed to delete"),
+                                    });
+                                  }}
+                                  data-ocid="admin.student-delete.confirm_button"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        {/* Applications Tab */}
+        <TabsContent value="applications" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <CardTitle className="text-base font-display">
+                  All Applications
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
+                    value={appJobFilter}
+                    onChange={(e) => setAppJobFilter(e.target.value)}
+                    data-ocid="admin.applications.select"
+                  >
+                    <option value="all">All Jobs</option>
+                    {jobs.map((j) => (
+                      <option key={j.id} value={j.id}>
+                        {j.title} — {j.company}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingApplications ? (
+                <div
+                  className="flex items-center gap-2 text-muted-foreground py-4"
+                  data-ocid="admin.applications.loading_state"
+                >
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Loading applications...</span>
+                </div>
+              ) : allApplications.length === 0 ? (
+                <div
+                  className="text-center py-8 text-muted-foreground"
+                  data-ocid="admin.applications.empty_state"
+                >
+                  <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No applications submitted yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {allApplications
+                    .filter(
+                      (a) => appJobFilter === "all" || a.jobId === appJobFilter,
+                    )
+                    .map((app, i) => {
+                      const job = jobs.find((j) => j.id === app.jobId);
+                      return (
+                        <div
+                          key={app.id}
+                          className="border border-border rounded-lg p-4 space-y-2 hover:border-primary/40 transition-colors"
+                          data-ocid={`admin.applications.item.${i + 1}`}
+                        >
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm text-foreground">
+                                  {app.name}
+                                </span>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {app.email} &middot; {app.phone}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-semibold text-primary">
+                                {job?.title ?? app.jobId}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {job?.company ?? ""}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <CalendarDays className="w-3 h-3" />
+                            {new Date(
+                              Number(app.timestamp) / 1_000_000,
+                            ).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </div>
+                          {app.coverLetter && (
+                            <p className="text-xs text-muted-foreground italic leading-relaxed border-l-2 border-border pl-2">
+                              {app.coverLetter.slice(0, 200)}
+                              {app.coverLetter.length > 200 ? "..." : ""}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
               )}
             </CardContent>
           </Card>

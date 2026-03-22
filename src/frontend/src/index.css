@@ -1,0 +1,97 @@
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Outfit:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0.98 0.003 240;
+    --foreground: 0.12 0.02 260;
+    --card: 1 0 0;
+    --card-foreground: 0.12 0.02 260;
+    --popover: 1 0 0;
+    --popover-foreground: 0.12 0.02 260;
+    --primary: 0.62 0.18 35;
+    --primary-foreground: 1 0 0;
+    --secondary: 0.94 0.01 240;
+    --secondary-foreground: 0.2 0.02 260;
+    --muted: 0.95 0.005 240;
+    --muted-foreground: 0.5 0.015 260;
+    --accent: 0.92 0.02 35;
+    --accent-foreground: 0.2 0.02 260;
+    --destructive: 0.55 0.22 27;
+    --destructive-foreground: 1 0 0;
+    --border: 0.9 0.01 240;
+    --input: 0.9 0.01 240;
+    --ring: 0.62 0.18 35;
+    --radius: 0.625rem;
+    --chart-1: 0.62 0.18 35;
+    --chart-2: 0.55 0.15 150;
+    --chart-3: 0.5 0.18 260;
+    --chart-4: 0.65 0.15 320;
+    --chart-5: 0.6 0.2 200;
+    --sidebar: 0.97 0.005 240;
+    --sidebar-foreground: 0.12 0.02 260;
+    --sidebar-primary: 0.62 0.18 35;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.92 0.015 35;
+    --sidebar-accent-foreground: 0.2 0.02 260;
+    --sidebar-border: 0.9 0.01 240;
+    --sidebar-ring: 0.62 0.18 35;
+  }
+
+  .dark {
+    --background: 0.12 0.015 260;
+    --foreground: 0.95 0.005 240;
+    --card: 0.16 0.015 260;
+    --card-foreground: 0.95 0.005 240;
+    --popover: 0.16 0.015 260;
+    --popover-foreground: 0.95 0.005 240;
+    --primary: 0.72 0.18 35;
+    --primary-foreground: 0.1 0.01 260;
+    --secondary: 0.2 0.02 260;
+    --secondary-foreground: 0.9 0.005 240;
+    --muted: 0.2 0.015 260;
+    --muted-foreground: 0.6 0.02 260;
+    --accent: 0.22 0.04 35;
+    --accent-foreground: 0.95 0.005 240;
+    --destructive: 0.6 0.22 27;
+    --destructive-foreground: 1 0 0;
+    --border: 0.22 0.02 260;
+    --input: 0.22 0.02 260;
+    --ring: 0.72 0.18 35;
+    --chart-1: 0.72 0.18 35;
+    --chart-2: 0.62 0.15 150;
+    --chart-3: 0.6 0.18 260;
+    --chart-4: 0.7 0.15 320;
+    --chart-5: 0.65 0.2 200;
+    --sidebar: 0.14 0.015 260;
+    --sidebar-foreground: 0.95 0.005 240;
+    --sidebar-primary: 0.72 0.18 35;
+    --sidebar-primary-foreground: 0.1 0.01 260;
+    --sidebar-accent: 0.2 0.04 35;
+    --sidebar-accent-foreground: 0.95 0.005 240;
+    --sidebar-border: 0.22 0.02 260;
+    --sidebar-ring: 0.72 0.18 35;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body;
+  }
+}
+
+@layer components {
+  .card-glow {
+    @apply transition-shadow duration-200;
+  }
+  .card-glow:hover {
+    box-shadow: 0 0 0 1px oklch(var(--primary) / 0.3), 0 4px 16px
+      oklch(var(--primary) / 0.08);
+  }
+}

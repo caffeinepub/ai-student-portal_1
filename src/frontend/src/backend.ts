@@ -97,6 +97,43 @@ export interface MCQQuestion {
     correct_option_index: bigint;
     options: Array<string>;
 }
+export interface JobApplication {
+    id: string;
+    principal: Principal;
+    name: string;
+    jobId: string;
+    coverLetter: string;
+    email: string;
+    timestamp: Time;
+    phone: string;
+}
+export interface JobListing {
+    id: string;
+    title: string;
+    apply_url: string;
+    time: Time;
+    description: string;
+    company: string;
+    location: string;
+    job_type: JobType;
+}
+export interface Course {
+    id: string;
+    title: string;
+    youtube_url: string;
+    difficulty: DifficultyLevel;
+    description: string;
+    thumbnail_url: string;
+    category: string;
+}
+export interface StudentAccount {
+    name: string;
+    securityQuestion: string;
+    email: string;
+    passwordHash: string;
+    securityAnswerHash: string;
+    registeredAt: Time;
+}
 export interface QuizAttempt {
     score: bigint;
     timestamp: Time;
@@ -125,31 +162,12 @@ export interface ResumeProfile {
     phone: string;
     skills: Array<string>;
 }
-export interface JobListing {
-    id: string;
-    title: string;
-    apply_url: string;
-    time: Time;
-    description: string;
-    company: string;
-    location: string;
-    job_type: JobType;
-}
 export interface CourseProgress {
     completedAt: Time;
     courseId: string;
 }
 export interface UserProfile {
     name: string;
-}
-export interface Course {
-    id: string;
-    title: string;
-    youtube_url: string;
-    difficulty: DifficultyLevel;
-    description: string;
-    thumbnail_url: string;
-    category: string;
 }
 export enum DifficultyLevel {
     intermediate = "intermediate",
@@ -166,8 +184,20 @@ export enum UserRole {
     user = "user",
     guest = "guest"
 }
+export enum Variant_ok_emailTaken_invalidInput {
+    ok = "ok",
+    emailTaken = "emailTaken",
+    invalidInput = "invalidInput"
+}
+export enum Variant_ok_notFound_rateLimited_wrongAnswer {
+    ok = "ok",
+    notFound = "notFound",
+    rateLimited = "rateLimited",
+    wrongAnswer = "wrongAnswer"
+}
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
+    applyForJob(jobId: string, name: string, email: string, phone: string, coverLetter: string): Promise<string>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     createCourse(title: string, description: string, category: string, youtube_url: string, thumbnail_url: string, difficulty: DifficultyLevel): Promise<string>;
     createJobListing(title: string, company: string, location: string, description: string, apply_url: string, job_type: JobType): Promise<string>;
@@ -176,25 +206,35 @@ export interface backendInterface {
     deleteCourse(id: string): Promise<void>;
     deleteJobListing(id: string): Promise<void>;
     deleteQuestion(id: string): Promise<void>;
+    deleteStudent(email: string): Promise<void>;
     deleteTestTopic(id: string): Promise<void>;
+    getAllApplications(): Promise<Array<JobApplication>>;
     getAllCourses(): Promise<Array<Course>>;
     getAllJobListings(): Promise<Array<JobListing>>;
     getAllQuestions(): Promise<Array<MCQQuestion>>;
+    getAllStudents(): Promise<Array<StudentAccount>>;
     getAllTestTopics(): Promise<Array<TestTopic>>;
+    getApplicationsByJob(jobId: string): Promise<Array<JobApplication>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCourse(id: string): Promise<Course | null>;
     getJobListing(id: string): Promise<JobListing | null>;
+    getMyApplications(): Promise<Array<JobApplication>>;
     getQuestion(id: string): Promise<MCQQuestion | null>;
     getQuestionsByTopic(topicId: string): Promise<Array<MCQQuestion>>;
+    getSecurityQuestion(email: string): Promise<string | null>;
+    getStudentCount(): Promise<bigint>;
     getTestTopic(id: string): Promise<TestTopic | null>;
     getUserCourseProgress(user: Principal): Promise<Array<CourseProgress>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     getUserQuizAttempts(user: Principal): Promise<Array<QuizAttempt>>;
     getUserXP(user: Principal): Promise<bigint>;
     isCallerAdmin(): Promise<boolean>;
+    loginStudent(email: string, passwordHash: string): Promise<StudentAccount | null>;
     recordCourseCompletion(courseId: string): Promise<void>;
     recordQuizAttempt(topicId: string, score: bigint): Promise<void>;
+    registerStudent(name: string, email: string, passwordHash: string, securityQuestion: string, securityAnswerHash: string): Promise<Variant_ok_emailTaken_invalidInput>;
+    resetPasswordWithSecurityAnswer(email: string, securityAnswerHash: string, newPasswordHash: string): Promise<Variant_ok_notFound_rateLimited_wrongAnswer>;
     resumeProfile(user: Principal): Promise<ResumeProfile | null>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveResumeProfile(profile: ResumeProfile): Promise<void>;
@@ -204,7 +244,7 @@ export interface backendInterface {
     updateTestTopic(id: string, title: string, description: string): Promise<void>;
     updateXP(xp: bigint): Promise<void>;
 }
-import type { Course as _Course, DifficultyLevel as _DifficultyLevel, JobListing as _JobListing, JobType as _JobType, MCQQuestion as _MCQQuestion, ResumeProfile as _ResumeProfile, TestTopic as _TestTopic, Time as _Time, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
+import type { Course as _Course, DifficultyLevel as _DifficultyLevel, JobListing as _JobListing, JobType as _JobType, MCQQuestion as _MCQQuestion, ResumeProfile as _ResumeProfile, StudentAccount as _StudentAccount, TestTopic as _TestTopic, Time as _Time, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
@@ -218,6 +258,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor._initializeAccessControlWithSecret(arg0);
+            return result;
+        }
+    }
+    async applyForJob(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.applyForJob(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.applyForJob(arg0, arg1, arg2, arg3, arg4);
             return result;
         }
     }
@@ -333,6 +387,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteStudent(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteStudent(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteStudent(arg0);
+            return result;
+        }
+    }
     async deleteTestTopic(arg0: string): Promise<void> {
         if (this.processError) {
             try {
@@ -344,6 +412,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteTestTopic(arg0);
+            return result;
+        }
+    }
+    async getAllApplications(): Promise<Array<JobApplication>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllApplications();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllApplications();
             return result;
         }
     }
@@ -389,6 +471,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getAllStudents(): Promise<Array<StudentAccount>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllStudents();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllStudents();
+            return result;
+        }
+    }
     async getAllTestTopics(): Promise<Array<TestTopic>> {
         if (this.processError) {
             try {
@@ -400,6 +496,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllTestTopics();
+            return result;
+        }
+    }
+    async getApplicationsByJob(arg0: string): Promise<Array<JobApplication>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getApplicationsByJob(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getApplicationsByJob(arg0);
             return result;
         }
     }
@@ -459,6 +569,20 @@ export class Backend implements backendInterface {
             return from_candid_opt_n21(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getMyApplications(): Promise<Array<JobApplication>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getMyApplications();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getMyApplications();
+            return result;
+        }
+    }
     async getQuestion(arg0: string): Promise<MCQQuestion | null> {
         if (this.processError) {
             try {
@@ -487,18 +611,46 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async getTestTopic(arg0: string): Promise<TestTopic | null> {
+    async getSecurityQuestion(arg0: string): Promise<string | null> {
         if (this.processError) {
             try {
-                const result = await this.actor.getTestTopic(arg0);
+                const result = await this.actor.getSecurityQuestion(arg0);
                 return from_candid_opt_n23(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getTestTopic(arg0);
+            const result = await this.actor.getSecurityQuestion(arg0);
             return from_candid_opt_n23(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getStudentCount(): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getStudentCount();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getStudentCount();
+            return result;
+        }
+    }
+    async getTestTopic(arg0: string): Promise<TestTopic | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getTestTopic(arg0);
+                return from_candid_opt_n24(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getTestTopic(arg0);
+            return from_candid_opt_n24(this._uploadFile, this._downloadFile, result);
         }
     }
     async getUserCourseProgress(arg0: Principal): Promise<Array<CourseProgress>> {
@@ -571,6 +723,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async loginStudent(arg0: string, arg1: string): Promise<StudentAccount | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.loginStudent(arg0, arg1);
+                return from_candid_opt_n25(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.loginStudent(arg0, arg1);
+            return from_candid_opt_n25(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async recordCourseCompletion(arg0: string): Promise<void> {
         if (this.processError) {
             try {
@@ -599,18 +765,46 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async registerStudent(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<Variant_ok_emailTaken_invalidInput> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.registerStudent(arg0, arg1, arg2, arg3, arg4);
+                return from_candid_variant_n26(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.registerStudent(arg0, arg1, arg2, arg3, arg4);
+            return from_candid_variant_n26(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async resetPasswordWithSecurityAnswer(arg0: string, arg1: string, arg2: string): Promise<Variant_ok_notFound_rateLimited_wrongAnswer> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.resetPasswordWithSecurityAnswer(arg0, arg1, arg2);
+                return from_candid_variant_n27(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.resetPasswordWithSecurityAnswer(arg0, arg1, arg2);
+            return from_candid_variant_n27(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async resumeProfile(arg0: Principal): Promise<ResumeProfile | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.resumeProfile(arg0);
-                return from_candid_opt_n24(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n28(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.resumeProfile(arg0);
-            return from_candid_opt_n24(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n28(this._uploadFile, this._downloadFile, result);
         }
     }
     async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
@@ -739,10 +933,16 @@ function from_candid_opt_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 function from_candid_opt_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_MCQQuestion]): MCQQuestion | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_TestTopic]): TestTopic | null {
+function from_candid_opt_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_ResumeProfile]): ResumeProfile | null {
+function from_candid_opt_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_TestTopic]): TestTopic | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_opt_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_StudentAccount]): StudentAccount | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_opt_n28(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_ResumeProfile]): ResumeProfile | null {
     return value.length === 0 ? null : value[0];
 }
 function from_candid_record_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -828,6 +1028,26 @@ function from_candid_variant_n19(_uploadFile: (file: ExternalBlob) => Promise<Ui
     guest: null;
 }): UserRole {
     return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
+}
+function from_candid_variant_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    ok: null;
+} | {
+    emailTaken: null;
+} | {
+    invalidInput: null;
+}): Variant_ok_emailTaken_invalidInput {
+    return "ok" in value ? Variant_ok_emailTaken_invalidInput.ok : "emailTaken" in value ? Variant_ok_emailTaken_invalidInput.emailTaken : "invalidInput" in value ? Variant_ok_emailTaken_invalidInput.invalidInput : value;
+}
+function from_candid_variant_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    ok: null;
+} | {
+    notFound: null;
+} | {
+    rateLimited: null;
+} | {
+    wrongAnswer: null;
+}): Variant_ok_notFound_rateLimited_wrongAnswer {
+    return "ok" in value ? Variant_ok_notFound_rateLimited_wrongAnswer.ok : "notFound" in value ? Variant_ok_notFound_rateLimited_wrongAnswer.notFound : "rateLimited" in value ? Variant_ok_notFound_rateLimited_wrongAnswer.rateLimited : "wrongAnswer" in value ? Variant_ok_notFound_rateLimited_wrongAnswer.wrongAnswer : value;
 }
 function from_candid_vec_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_JobListing>): Array<JobListing> {
     return value.map((x)=>from_candid_JobListing_n13(_uploadFile, _downloadFile, x));

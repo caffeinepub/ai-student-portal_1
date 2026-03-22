@@ -1,12 +1,13 @@
+import Set "mo:core/Set";
 import Map "mo:core/Map";
 import Array "mo:core/Array";
-import Iter "mo:core/Iter";
-import Order "mo:core/Order";
 import Text "mo:core/Text";
+import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
 import List "mo:core/List";
-import Int "mo:core/Int";
+import Iter "mo:core/Iter";
 import Time "mo:core/Time";
+import Int "mo:core/Int";
 import Principal "mo:core/Principal";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
@@ -39,6 +40,12 @@ actor {
         case (#equal) { Text.compare(cp2.courseId, cp1.courseId) };
         case (order) { order };
       };
+    };
+  };
+
+  module StudentAccount {
+    public func compare(a : StudentAccount, b : StudentAccount) : Order.Order {
+      Int.compare(b.registeredAt, a.registeredAt);
     };
   };
 
@@ -112,15 +119,36 @@ actor {
     name : Text;
   };
 
+  public type StudentAccount = {
+    name : Text;
+    email : Text;
+    passwordHash : Text;
+    registeredAt : Time.Time;
+    securityQuestion : Text;
+    securityAnswerHash : Text;
+  };
+
   type CourseProgress = {
     courseId : Text;
     completedAt : Time.Time;
+  };
+
+  type JobApplication = {
+    id : Text;
+    jobId : Text;
+    name : Text;
+    email : Text;
+    phone : Text;
+    coverLetter : Text;
+    principal : Principal;
+    timestamp : Time.Time;
   };
 
   var totalCoursesCreated = 0;
   var totalTopicsCreated = 0;
   var totalQuestionsCreated = 0;
   var totalJobsCreated = 0;
+  var totalApplications = 0;
 
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -137,10 +165,27 @@ actor {
   let jobListings = Map.empty<Text, JobListing>();
   let resumes = Map.empty<Principal, ResumeProfile>();
   let userProfiles = Map.empty<Principal, UserProfile>();
+  let applications = Map.empty<Text, JobApplication>();
+
+  let studentAccounts = Map.empty<Text, StudentAccount>();
 
   let userXP = Map.empty<Principal, Nat>();
   let quizAttempts = Map.empty<Principal, List.List<QuizAttempt>>();
   let courseProgress = Map.empty<Principal, List.List<CourseProgress>>();
+
+  // Rate limiting for password reset attempts
+  type ResetAttempt = {
+    email : Text;
+    timestamp : Time.Time;
+    failedAttempts : Nat;
+  };
+  let resetAttempts = Map.empty<Text, ResetAttempt>();
+
+  // Helper function to generate application id
+  func generateApplicationId() : Text {
+    totalApplications += 1;
+    "application_" # totalApplications.toText();
+  };
 
   // User Profile Management (Required by frontend)
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
@@ -162,6 +207,167 @@ actor {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
     userProfiles.add(caller, profile);
+  };
+
+  // Student Account Management
+  public shared ({ caller }) func registerStudent(name : Text, email : Text, passwordHash : Text, securityQuestion : Text, securityAnswerHash : Text) : async { #ok; #emailTaken; #invalidInput } {
+    if (name.size() == 0 or email.size() == 0 or passwordHash.size() == 0 or securityQuestion.size() == 0 or securityAnswerHash.size() == 0) {
+      return #invalidInput;
+    };
+
+    let emailLower = email.toLower();
+
+    if (studentAccounts.containsKey(emailLower)) {
+      return #emailTaken;
+    };
+
+    let account : StudentAccount = {
+      name;
+      email = emailLower;
+      passwordHash;
+      registeredAt = Time.now();
+      securityQuestion;
+      securityAnswerHash;
+    };
+
+    studentAccounts.add(emailLower, account);
+    #ok;
+  };
+
+  public shared ({ caller }) func loginStudent(email : Text, passwordHash : Text) : async ?StudentAccount {
+    let emailLower = email.toLower();
+
+    switch (studentAccounts.get(emailLower)) {
+      case (null) { null };
+      case (?account) {
+        if (account.passwordHash == passwordHash) {
+          ?account;
+        } else {
+          null;
+        };
+      };
+    };
+  };
+
+  public query ({ caller }) func getSecurityQuestion(email : Text) : async ?Text {
+    let emailLower = email.toLower();
+    switch (studentAccounts.get(emailLower)) {
+      case (null) { null };
+      case (?account) { ?account.securityQuestion };
+    };
+  };
+
+  // Helper function to check rate limiting
+  func checkRateLimit(email : Text) : Bool {
+    let emailLower = email.toLower();
+    let now = Time.now();
+    let fiveMinutesInNanos : Int = 5 * 60 * 1_000_000_000;
+
+    switch (resetAttempts.get(emailLower)) {
+      case (null) { true };
+      case (?attempt) {
+        let timeSinceLastAttempt = now - attempt.timestamp;
+        if (timeSinceLastAttempt > fiveMinutesInNanos) {
+          // Reset counter after 5 minutes
+          true;
+        } else if (attempt.failedAttempts >= 5) {
+          // Too many failed attempts within 5 minutes
+          false;
+        } else {
+          true;
+        };
+      };
+    };
+  };
+
+  // Helper function to record reset attempt
+  func recordResetAttempt(email : Text, success : Bool) {
+    let emailLower = email.toLower();
+    let now = Time.now();
+
+    if (success) {
+      // Clear attempts on success
+      resetAttempts.remove(emailLower);
+    } else {
+      // Increment failed attempts
+      let newAttempt : ResetAttempt = switch (resetAttempts.get(emailLower)) {
+        case (null) {
+          { email = emailLower; timestamp = now; failedAttempts = 1 };
+        };
+        case (?existing) {
+          let timeSinceLastAttempt = now - existing.timestamp;
+          let fiveMinutesInNanos : Int = 5 * 60 * 1_000_000_000;
+          
+          if (timeSinceLastAttempt > fiveMinutesInNanos) {
+            // Reset counter if more than 5 minutes passed
+            { email = emailLower; timestamp = now; failedAttempts = 1 };
+          } else {
+            // Increment counter
+            { email = emailLower; timestamp = now; failedAttempts = existing.failedAttempts + 1 };
+          };
+        };
+      };
+      resetAttempts.add(emailLower, newAttempt);
+    };
+  };
+
+  public shared ({ caller }) func resetPasswordWithSecurityAnswer(email : Text, securityAnswerHash : Text, newPasswordHash : Text) : async {
+    #ok;
+    #notFound;
+    #wrongAnswer;
+    #rateLimited;
+  } {
+    let emailLower = email.toLower();
+
+    // Check rate limiting to prevent brute force attacks
+    if (not checkRateLimit(emailLower)) {
+      return #rateLimited;
+    };
+
+    switch (studentAccounts.get(emailLower)) {
+      case (null) { 
+        recordResetAttempt(emailLower, false);
+        #notFound 
+      };
+      case (?account) {
+        if (account.securityAnswerHash != securityAnswerHash) {
+          recordResetAttempt(emailLower, false);
+          return #wrongAnswer;
+        };
+        
+        // Security answer is correct, update password
+        let updatedAccount : StudentAccount = {
+          account with passwordHash = newPasswordHash;
+        };
+        studentAccounts.add(emailLower, updatedAccount);
+        recordResetAttempt(emailLower, true);
+        #ok;
+      };
+    };
+  };
+
+  public shared ({ caller }) func getAllStudents() : async [StudentAccount] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view all students");
+    };
+
+    studentAccounts.values().toArray().sort();
+  };
+
+  public shared ({ caller }) func deleteStudent(email : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can delete students");
+    };
+
+    let emailLower = email.toLower();
+    if (not studentAccounts.containsKey(emailLower)) {
+      Runtime.trap("Student not found");
+    };
+    studentAccounts.remove(emailLower);
+  };
+
+  public query func getStudentCount() : async Nat {
+    studentAccounts.size();
   };
 
   // Courses
@@ -559,5 +765,56 @@ actor {
     };
 
     resumes.get(user);
+  };
+
+  // Job Application System
+
+  public shared ({ caller }) func applyForJob(jobId : Text, name : Text, email : Text, phone : Text, coverLetter : Text) : async Text {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can apply for jobs");
+    };
+
+    if (not jobListings.containsKey(jobId)) {
+      Runtime.trap("Job listing not found");
+    };
+
+    let applicationId = generateApplicationId();
+    let newApplication : JobApplication = {
+      id = applicationId;
+      jobId;
+      name;
+      email;
+      phone;
+      coverLetter;
+      principal = caller;
+      timestamp = Time.now();
+    };
+
+    applications.add(applicationId, newApplication);
+    applicationId;
+  };
+
+  public query ({ caller }) func getMyApplications() : async [JobApplication] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view their applications");
+    };
+
+    applications.values().toArray().filter(func(app) { app.principal == caller });
+  };
+
+  public query ({ caller }) func getAllApplications() : async [JobApplication] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view all applications");
+    };
+
+    applications.values().toArray();
+  };
+
+  public query ({ caller }) func getApplicationsByJob(jobId : Text) : async [JobApplication] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view applications by job");
+    };
+
+    applications.values().toArray().filter(func(app) { app.jobId == jobId });
   };
 };

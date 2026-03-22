@@ -23,6 +23,16 @@ export interface CourseProgress { 'completedAt' : Time, 'courseId' : string }
 export type DifficultyLevel = { 'intermediate' : null } |
   { 'beginner' : null } |
   { 'advanced' : null };
+export interface JobApplication {
+  'id' : string,
+  'principal' : Principal,
+  'name' : string,
+  'jobId' : string,
+  'coverLetter' : string,
+  'email' : string,
+  'timestamp' : Time,
+  'phone' : string,
+}
 export interface JobListing {
   'id' : string,
   'title' : string,
@@ -66,6 +76,14 @@ export interface ResumeProfile {
   'phone' : string,
   'skills' : Array<string>,
 }
+export interface StudentAccount {
+  'name' : string,
+  'securityQuestion' : string,
+  'email' : string,
+  'passwordHash' : string,
+  'securityAnswerHash' : string,
+  'registeredAt' : Time,
+}
 export interface TestTopic {
   'id' : string,
   'title' : string,
@@ -78,6 +96,7 @@ export type UserRole = { 'admin' : null } |
   { 'guest' : null };
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'applyForJob' : ActorMethod<[string, string, string, string, string], string>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'createCourse' : ActorMethod<
     [string, string, string, string, string, DifficultyLevel],
@@ -95,25 +114,46 @@ export interface _SERVICE {
   'deleteCourse' : ActorMethod<[string], undefined>,
   'deleteJobListing' : ActorMethod<[string], undefined>,
   'deleteQuestion' : ActorMethod<[string], undefined>,
+  'deleteStudent' : ActorMethod<[string], undefined>,
   'deleteTestTopic' : ActorMethod<[string], undefined>,
+  'getAllApplications' : ActorMethod<[], Array<JobApplication>>,
   'getAllCourses' : ActorMethod<[], Array<Course>>,
   'getAllJobListings' : ActorMethod<[], Array<JobListing>>,
   'getAllQuestions' : ActorMethod<[], Array<MCQQuestion>>,
+  'getAllStudents' : ActorMethod<[], Array<StudentAccount>>,
   'getAllTestTopics' : ActorMethod<[], Array<TestTopic>>,
+  'getApplicationsByJob' : ActorMethod<[string], Array<JobApplication>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCourse' : ActorMethod<[string], [] | [Course]>,
   'getJobListing' : ActorMethod<[string], [] | [JobListing]>,
+  'getMyApplications' : ActorMethod<[], Array<JobApplication>>,
   'getQuestion' : ActorMethod<[string], [] | [MCQQuestion]>,
   'getQuestionsByTopic' : ActorMethod<[string], Array<MCQQuestion>>,
+  'getSecurityQuestion' : ActorMethod<[string], [] | [string]>,
+  'getStudentCount' : ActorMethod<[], bigint>,
   'getTestTopic' : ActorMethod<[string], [] | [TestTopic]>,
   'getUserCourseProgress' : ActorMethod<[Principal], Array<CourseProgress>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'getUserQuizAttempts' : ActorMethod<[Principal], Array<QuizAttempt>>,
   'getUserXP' : ActorMethod<[Principal], bigint>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'loginStudent' : ActorMethod<[string, string], [] | [StudentAccount]>,
   'recordCourseCompletion' : ActorMethod<[string], undefined>,
   'recordQuizAttempt' : ActorMethod<[string, bigint], undefined>,
+  'registerStudent' : ActorMethod<
+    [string, string, string, string, string],
+    { 'ok' : null } |
+      { 'emailTaken' : null } |
+      { 'invalidInput' : null }
+  >,
+  'resetPasswordWithSecurityAnswer' : ActorMethod<
+    [string, string, string],
+    { 'ok' : null } |
+      { 'notFound' : null } |
+      { 'rateLimited' : null } |
+      { 'wrongAnswer' : null }
+  >,
   'resumeProfile' : ActorMethod<[Principal], [] | [ResumeProfile]>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveResumeProfile' : ActorMethod<[ResumeProfile], undefined>,

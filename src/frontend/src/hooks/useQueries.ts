@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   Course,
+  JobApplication,
   JobListing,
   MCQQuestion,
   ResumeProfile,
+  StudentAccount,
   TestTopic,
 } from "../backend.d";
 import { useActor } from "./useActor";
@@ -38,6 +40,7 @@ export function useGetAllJobListings() {
       }
     },
     enabled: !!actor && !isFetching,
+    refetchInterval: 60000,
   });
 }
 
@@ -145,7 +148,10 @@ export function useRecordQuizAttempt() {
     mutationFn: async ({
       topicId,
       score,
-    }: { topicId: string; score: bigint }) => {
+    }: {
+      topicId: string;
+      score: bigint;
+    }) => {
       if (!actor) throw new Error("No actor");
       await actor.recordQuizAttempt(topicId, score);
     },
@@ -155,7 +161,7 @@ export function useRecordQuizAttempt() {
   });
 }
 
-export function useSaveResumeProfile() {
+export function useUpdateResumeProfile() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
@@ -169,7 +175,10 @@ export function useSaveResumeProfile() {
   });
 }
 
-// Admin mutations
+export function useSaveResumeProfile() {
+  return useUpdateResumeProfile();
+}
+
 export function useCreateCourse() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
@@ -279,5 +288,129 @@ export function useDeleteTestTopic() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["testTopics"] });
     },
+  });
+}
+
+// Student queries (admin)
+export function useGetAllStudents() {
+  const { actor, isFetching } = useActor();
+  return useQuery<StudentAccount[]>({
+    queryKey: ["students"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await actor.getAllStudents();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetStudentCount() {
+  const { actor, isFetching } = useActor();
+  return useQuery<bigint>({
+    queryKey: ["studentCount"],
+    queryFn: async () => {
+      if (!actor) return BigInt(0);
+      try {
+        return await actor.getStudentCount();
+      } catch {
+        return BigInt(0);
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useDeleteStudent() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (email: string) => {
+      if (!actor) throw new Error("No actor");
+      await actor.deleteStudent(email);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["students"] });
+      void queryClient.invalidateQueries({ queryKey: ["studentCount"] });
+    },
+  });
+}
+
+// Job Application queries
+export function useApplyForJob() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      jobId: string;
+      name: string;
+      email: string;
+      phone: string;
+      coverLetter: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return await actor.applyForJob(
+        data.jobId,
+        data.name,
+        data.email,
+        data.phone,
+        data.coverLetter,
+      );
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["myApplications"] });
+      void queryClient.invalidateQueries({ queryKey: ["allApplications"] });
+    },
+  });
+}
+
+export function useGetMyApplications() {
+  const { actor, isFetching } = useActor();
+  return useQuery<JobApplication[]>({
+    queryKey: ["myApplications"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await actor.getMyApplications();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetAllApplications() {
+  const { actor, isFetching } = useActor();
+  return useQuery<JobApplication[]>({
+    queryKey: ["allApplications"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await actor.getAllApplications();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetApplicationsByJob(jobId: string | null) {
+  const { actor, isFetching } = useActor();
+  return useQuery<JobApplication[]>({
+    queryKey: ["applicationsByJob", jobId],
+    queryFn: async () => {
+      if (!actor || !jobId) return [];
+      try {
+        return await actor.getApplicationsByJob(jobId);
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching && !!jobId,
   });
 }
