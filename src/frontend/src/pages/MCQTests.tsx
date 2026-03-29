@@ -6,9 +6,12 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle2,
+  ChevronLeft,
   ClipboardList,
   Loader2,
+  RefreshCw,
   Trophy,
   XCircle,
   Zap,
@@ -17,9 +20,15 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { MCQQuestion } from "../backend.d";
+import { advjavaMCQ } from "../data/advjavaMCQ";
+import { cMCQ } from "../data/cMCQ";
+import { dsaMCQ } from "../data/dsaMCQ";
+import { frontendMCQ } from "../data/frontendMCQ";
 import { javaMCQ1 } from "../data/javaMCQ1";
 import { javaMCQ2 } from "../data/javaMCQ2";
 import { javaMCQ3 } from "../data/javaMCQ3";
+import { pythonMCQ } from "../data/pythonMCQ";
+import { sqlMCQ } from "../data/sqlMCQ";
 import { useGetAllTestTopics, useRecordQuizAttempt } from "../hooks/useQueries";
 
 // ─── Static question bank ─────────────────────────────────────────────────────
@@ -62,28 +71,10 @@ const STATIC_TOPICS = [
     desc: "SQL queries, joins, aggregations, transactions",
   },
   {
-    id: "patterns",
-    title: "Pattern Programs",
-    emoji: "⭐",
-    desc: "Logic building with pattern printing",
-  },
-  {
-    id: "aptitude",
-    title: "Aptitude",
-    emoji: "🧮",
-    desc: "Quantitative aptitude for competitive exams",
-  },
-  {
     id: "advjava",
     title: "Advanced Java",
     emoji: "🚀",
     desc: "Streams, Lambdas, Concurrency, Design Patterns",
-  },
-  {
-    id: "programming",
-    title: "Programming",
-    emoji: "💻",
-    desc: "Core programming concepts, logic building, and practical coding",
   },
 ];
 
@@ -98,23 +89,18 @@ interface StaticQuestion {
 
 const Q: Record<string, StaticQuestion[]> = {
   java: [...javaMCQ1, ...javaMCQ2, ...javaMCQ3],
-  python: [],
-  c: [],
-  dsa: [],
-  frontend: [],
-  sql: [],
-  patterns: [],
-  aptitude: [],
-  advjava: [],
-  programming: [],
+  python: [...pythonMCQ],
+  c: [...cMCQ],
+  dsa: [...dsaMCQ],
+  frontend: [...frontendMCQ],
+  sql: [...sqlMCQ],
+  advjava: [...advjavaMCQ],
 };
-
-// ─── Difficulty levels ────────────────────────────────────────────────────────
 
 type DifficultyFilter = "All" | "Easy" | "Medium" | "Hard";
 type QuizState = "topics" | "quiz" | "results";
-
-// ─── Component ────────────────────────────────────────────────────────────────
+// feedback state per question: null = not submitted, "correct", "wrong-retry" (retry mode), "wrong-done" (moved on)
+type FeedbackState = null | "correct" | "wrong";
 
 export default function MCQTests() {
   const { isLoading } = useGetAllTestTopics();
@@ -124,12 +110,12 @@ export default function MCQTests() {
   const [diffFilter, setDiffFilter] = useState<DifficultyFilter>("All");
   const [quizState, setQuizState] = useState<QuizState>("topics");
   const [currentQ, setCurrentQ] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+  // store final recorded answer per question index
+  const [recordedAnswers, setRecordedAnswers] = useState<(number | null)[]>([]);
   const [currentSelection, setCurrentSelection] = useState<string>("");
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState<FeedbackState>(null);
   const { mutate: recordAttempt } = useRecordQuizAttempt();
 
-  // Derive topic questions
   const activeStaticQuestions: StaticQuestion[] = selectedStaticTopic
     ? (Q[selectedStaticTopic.id] ?? []).filter(
         (q) => diffFilter === "All" || q.difficulty === diffFilter,
@@ -146,34 +132,54 @@ export default function MCQTests() {
 
   const question = questions[currentQ];
   const totalQuestions = questions.length;
-  const score = selectedAnswers.reduce((acc, ans, i) => {
-    return acc + (ans === Number(questions[i]?.correct_option_index) ? 1 : 0);
-  }, 0);
+
+  const computeScore = (answers: (number | null)[]) =>
+    answers.reduce<number>((acc, ans, i) => {
+      return acc + (ans === Number(questions[i]?.correct_option_index) ? 1 : 0);
+    }, 0);
 
   function startQuiz(topic: (typeof STATIC_TOPICS)[0]) {
     setSelectedStaticTopic(topic);
     setQuizState("quiz");
     setCurrentQ(0);
-    setSelectedAnswers([]);
+    setRecordedAnswers([]);
     setCurrentSelection("");
-    setShowFeedback(false);
+    setFeedback(null);
   }
 
-  function handleNext() {
+  function handleSubmit() {
     if (!currentSelection) {
       toast.error("Please select an answer first");
       return;
     }
-    const updated = [...selectedAnswers, Number.parseInt(currentSelection)];
-    setSelectedAnswers(updated);
+    const selected = Number.parseInt(currentSelection);
+    const isCorrect = selected === Number(question?.correct_option_index);
+    setFeedback(isCorrect ? "correct" : "wrong");
+    // record the answer (overwrite if navigated back)
+    const updated = [...recordedAnswers];
+    updated[currentQ] = selected;
+    setRecordedAnswers(updated);
+  }
+
+  function handleRetry() {
+    // Clear selection and feedback so student can try again
     setCurrentSelection("");
-    setShowFeedback(false);
+    setFeedback(null);
+    // remove the recorded wrong answer for this question
+    const updated = [...recordedAnswers];
+    updated[currentQ] = null;
+    setRecordedAnswers(updated);
+  }
+
+  function handleNext() {
+    // Must have a correct answer before advancing
+    if (feedback !== "correct") {
+      toast.error("Answer correctly before moving to the next question");
+      return;
+    }
     if (currentQ + 1 >= totalQuestions) {
-      const finalScore = updated.reduce((acc, ans, i) => {
-        return (
-          acc + (ans === Number(questions[i]?.correct_option_index) ? 1 : 0)
-        );
-      }, 0);
+      // finish quiz
+      const finalScore = computeScore(recordedAnswers);
       setQuizState("results");
       recordAttempt(
         {
@@ -186,8 +192,38 @@ export default function MCQTests() {
         },
       );
     } else {
-      setCurrentQ((prev) => prev + 1);
+      const nextQ = currentQ + 1;
+      setCurrentQ(nextQ);
+      // restore previous selection if navigated back before
+      const prev = recordedAnswers[nextQ];
+      setCurrentSelection(
+        prev !== undefined && prev !== null ? String(prev) : "",
+      );
+      setFeedback(
+        prev !== undefined && prev !== null
+          ? prev === Number(questions[nextQ]?.correct_option_index)
+            ? "correct"
+            : null
+          : null,
+      );
     }
+  }
+
+  function handlePrevious() {
+    if (currentQ === 0) return;
+    const prevQ = currentQ - 1;
+    setCurrentQ(prevQ);
+    const prev = recordedAnswers[prevQ];
+    setCurrentSelection(
+      prev !== undefined && prev !== null ? String(prev) : "",
+    );
+    setFeedback(
+      prev !== undefined && prev !== null
+        ? prev === Number(questions[prevQ]?.correct_option_index)
+          ? "correct"
+          : null
+        : null,
+    );
   }
 
   function resetQuiz() {
@@ -195,23 +231,11 @@ export default function MCQTests() {
     setSelectedStaticTopic(null);
     setDiffFilter("All");
     setCurrentQ(0);
-    setSelectedAnswers([]);
-    setShowFeedback(false);
+    setRecordedAnswers([]);
+    setFeedback(null);
   }
 
-  function handleOptionClick(optionIndex: number) {
-    if (showFeedback) return;
-    const sel = String(optionIndex);
-    setCurrentSelection(sel);
-    setShowFeedback(true);
-    const isCorrect = optionIndex === Number(question?.correct_option_index);
-    if (isCorrect) {
-      setTimeout(() => {
-        handleNext();
-      }, 800);
-    }
-  }
-
+  const score = computeScore(recordedAnswers);
   const percentage =
     totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
 
@@ -224,6 +248,8 @@ export default function MCQTests() {
       total: all.length,
     };
   };
+
+  const isLastQuestion = currentQ + 1 >= totalQuestions;
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-6">
@@ -271,7 +297,6 @@ export default function MCQTests() {
             className="space-y-4"
             data-ocid="mcq.topics.list"
           >
-            {/* Difficulty filter */}
             <div
               className="flex gap-2 flex-wrap"
               data-ocid="mcq.difficulty.tab"
@@ -394,6 +419,7 @@ export default function MCQTests() {
             className="space-y-4"
             data-ocid="mcq.quiz.panel"
           >
+            {/* Progress */}
             <div className="flex items-center justify-between gap-3">
               <Progress
                 value={(currentQ / totalQuestions) * 100}
@@ -423,57 +449,158 @@ export default function MCQTests() {
                   {question.question_text}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
+                {/* Options */}
                 <RadioGroup
                   value={currentSelection}
                   onValueChange={() => {}}
                   data-ocid="mcq.options.radio"
                 >
-                  {question.options.map((opt, i) => (
-                    <button
-                      key={`${question.id}-${i}`}
-                      type="button"
-                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors w-full text-left ${
-                        showFeedback &&
-                        i === Number(question.correct_option_index)
-                          ? "border-green-500 bg-green-500/15 cursor-default"
-                          : showFeedback &&
-                              currentSelection === String(i) &&
-                              i !== Number(question.correct_option_index)
-                            ? "border-red-500 bg-red-500/15 cursor-default"
-                            : showFeedback
-                              ? "border-border opacity-50 cursor-default"
-                              : currentSelection === String(i)
-                                ? "border-primary bg-primary/10 cursor-pointer"
-                                : "border-border hover:border-primary/50 hover:bg-muted/50 cursor-pointer"
-                      }`}
-                      onClick={() => handleOptionClick(i)}
-                      disabled={showFeedback}
-                    >
-                      <RadioGroupItem value={String(i)} id={`opt-${i}`} />
-                      <Label
-                        htmlFor={`opt-${i}`}
-                        className="cursor-pointer flex-1 text-sm"
+                  {question.options.map((opt, i) => {
+                    const isCorrectOption =
+                      i === Number(question.correct_option_index);
+                    const isSelectedOption = currentSelection === String(i);
+                    let optClass =
+                      "border-border hover:border-primary/50 hover:bg-muted/50 cursor-pointer";
+                    if (feedback === "correct" && isSelectedOption) {
+                      optClass =
+                        "border-green-500 bg-green-500/15 cursor-default";
+                    } else if (feedback === "wrong") {
+                      if (isCorrectOption) {
+                        optClass =
+                          "border-green-500 bg-green-500/10 cursor-default";
+                      } else if (isSelectedOption) {
+                        optClass =
+                          "border-red-500 bg-red-500/15 cursor-default";
+                      } else {
+                        optClass = "border-border opacity-50 cursor-default";
+                      }
+                    } else if (isSelectedOption) {
+                      optClass = "border-primary bg-primary/10 cursor-pointer";
+                    }
+                    return (
+                      <button
+                        key={`${question.id}-${i}`}
+                        type="button"
+                        className={`flex items-center gap-3 p-3 rounded-lg border transition-colors w-full text-left ${optClass}`}
+                        onClick={() => {
+                          if (feedback !== null) return;
+                          setCurrentSelection(String(i));
+                        }}
+                        disabled={feedback !== null}
                       >
-                        {opt}
-                      </Label>
-                    </button>
-                  ))}
+                        <RadioGroupItem value={String(i)} id={`opt-${i}`} />
+                        <Label
+                          htmlFor={`opt-${i}`}
+                          className="cursor-pointer flex-1 text-sm"
+                        >
+                          {opt}
+                        </Label>
+                        {feedback === "correct" && isSelectedOption && (
+                          <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                        )}
+                        {feedback === "wrong" && isCorrectOption && (
+                          <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                        )}
+                        {feedback === "wrong" &&
+                          isSelectedOption &&
+                          !isCorrectOption && (
+                            <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                          )}
+                      </button>
+                    );
+                  })}
                 </RadioGroup>
 
-                {showFeedback &&
-                  currentSelection !==
-                    String(question.correct_option_index) && (
+                {/* Feedback Banner */}
+                {feedback === "correct" && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2 p-3 rounded-lg bg-green-500/15 border border-green-500/30 text-green-400 font-semibold text-sm"
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>Correct! Well done! ✓</span>
+                  </motion.div>
+                )}
+                {feedback === "wrong" && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2 p-3 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 font-semibold text-sm"
+                  >
+                    <XCircle className="w-5 h-5" />
+                    <span>
+                      Incorrect! The correct answer is highlighted in green.
+                    </span>
+                  </motion.div>
+                )}
+
+                {/* Action Buttons */}
+                <div
+                  className="flex items-center gap-2 pt-1"
+                  data-ocid="mcq.action.buttons"
+                >
+                  {/* Previous */}
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={currentQ === 0}
+                    className="flex items-center gap-1.5"
+                    data-ocid="mcq.previous.button"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+
+                  <div className="flex-1" />
+
+                  {/* Retry (only on wrong) */}
+                  {feedback === "wrong" && (
                     <Button
-                      className="w-full mt-2"
-                      onClick={handleNext}
-                      data-ocid="mcq.next.button"
+                      variant="outline"
+                      onClick={handleRetry}
+                      className="flex items-center gap-1.5 border-red-500/40 text-red-400 hover:bg-red-500/10"
+                      data-ocid="mcq.retry.button"
                     >
-                      {currentQ + 1 >= totalQuestions
-                        ? "Submit Quiz"
-                        : "Next Question"}
+                      <RefreshCw className="w-4 h-4" />
+                      Retry
                     </Button>
                   )}
+
+                  {/* Submit (before feedback) */}
+                  {feedback === null && (
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!currentSelection}
+                      className="flex items-center gap-1.5 px-5"
+                      data-ocid="mcq.submit.button"
+                    >
+                      Submit
+                    </Button>
+                  )}
+
+                  {/* OK / Next (on correct) */}
+                  {feedback === "correct" && (
+                    <Button
+                      onClick={handleNext}
+                      className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-5"
+                      data-ocid="mcq.next.button"
+                    >
+                      {isLastQuestion ? (
+                        <>
+                          <Trophy className="w-4 h-4" />
+                          Finish Quiz
+                        </>
+                      ) : (
+                        <>
+                          OK &amp; Next
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -533,7 +660,7 @@ export default function MCQTests() {
 
                 <div className="grid grid-cols-1 gap-2 text-left max-h-64 overflow-y-auto">
                   {questions.map((q, i) => {
-                    const userAns = selectedAnswers[i];
+                    const userAns = recordedAnswers[i];
                     const correct = Number(q.correct_option_index);
                     const isCorrect = userAns === correct;
                     return (
@@ -575,7 +702,7 @@ export default function MCQTests() {
                     onClick={() =>
                       selectedStaticTopic && startQuiz(selectedStaticTopic)
                     }
-                    data-ocid="mcq.retry.button"
+                    data-ocid="mcq.retry-quiz.button"
                   >
                     Retry Quiz
                   </Button>
