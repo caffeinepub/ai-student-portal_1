@@ -768,14 +768,21 @@ actor {
   };
 
   // Job Application System
-
+  // Accepts applications for both backend-stored jobs and fallback (static) jobs
   public shared ({ caller }) func applyForJob(jobId : Text, name : Text, email : Text, phone : Text, coverLetter : Text) : async Text {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can apply for jobs");
     };
 
-    if (not jobListings.containsKey(jobId)) {
-      Runtime.trap("Job listing not found");
+    // Prevent duplicate applications from same user for same job
+    let alreadyApplied = applications.values().toArray().filter(
+      func(app : JobApplication) : Bool {
+        app.principal == caller and app.jobId == jobId
+      }
+    ).size() > 0;
+
+    if (alreadyApplied) {
+      Runtime.trap("You have already applied for this job");
     };
 
     let applicationId = generateApplicationId();
