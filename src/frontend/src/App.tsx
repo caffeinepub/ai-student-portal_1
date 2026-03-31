@@ -10,7 +10,6 @@ import AuthProvider from "./components/AuthProvider";
 import Layout from "./components/Layout";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { useAuth } from "./hooks/useAuth";
-import AdminPanel from "./pages/AdminPanel";
 import ChatAssistant from "./pages/ChatAssistant";
 import CodingPractice from "./pages/CodingPractice";
 import Courses from "./pages/Courses";
@@ -87,12 +86,6 @@ const chatRoute = createRoute({
   component: ChatAssistant,
 });
 
-const adminRoute = createRoute({
-  getParentRoute: () => layoutRoute,
-  path: "/admin",
-  component: AdminPanel,
-});
-
 const routeTree = rootRoute.addChildren([
   layoutRoute.addChildren([
     indexRoute,
@@ -102,7 +95,6 @@ const routeTree = rootRoute.addChildren([
     jobsRoute,
     resumeRoute,
     chatRoute,
-    adminRoute,
   ]),
 ]);
 

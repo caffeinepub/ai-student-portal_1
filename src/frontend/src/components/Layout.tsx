@@ -13,7 +13,6 @@ import {
   Menu,
   MessageSquare,
   Moon,
-  ShieldCheck,
   Sun,
   User,
   X,
@@ -33,7 +32,6 @@ const navItems = [
   { path: "/jobs", label: "Jobs", icon: Briefcase },
   { path: "/resume", label: "Resume Builder", icon: FileText },
   { path: "/chat", label: "AI Chat", icon: MessageSquare },
-  { path: "/admin", label: "Admin", icon: ShieldCheck },
 ] as const;
 
 function XPBadge() {
