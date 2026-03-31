@@ -1,27 +1,27 @@
 # AI Student Portal
 
 ## Current State
-Job section shows job cards with an external Apply Now link that redirects to the company website. No in-app application flow exists.
+Coding Practice section has 3 courses: Java, Python, Patterns — all with empty problems arrays.
+codingData.ts defines the Course/Problem interface and exports COURSES with empty problem arrays.
 
 ## Requested Changes (Diff)
 
 ### Add
-- JobApplication backend type: id, job_id, applicant_name, email, phone, cover_letter, applied_at
-- Backend: applyForJob, getMyApplications, getAllApplications (admin)
-- In-app Apply dialog on each job card with form: Name, Email, Phone, Cover Letter
-- Applied badge on cards once student has applied
-- My Applications tab to track submitted applications
-- New badge on recently added jobs
-- Admin view of all applications
+- Java coding problems: 18 topics × 30 questions (10 Easy/10 Medium/10 Hard) = 540 problems with input data and example output, split across 3 files
+- Python coding problems: same 18 topics × 30 questions = 540 problems, split across 2 files
+- Pattern coding problems: 30 modern interview pattern programs (star/number patterns + algorithm patterns)
 
 ### Modify
-- JobListings.tsx: replace external link with in-app apply dialog
-- AdminPanel.tsx: add Applications tab
+- codingData.ts: import from new data files and populate COURSES[].problems
 
 ### Remove
-- Nothing
+- Nothing removed
 
 ## Implementation Plan
-1. Regenerate Motoko backend with JobApplication type and functions
-2. Rebuild JobListings.tsx with apply dialog, My Applications tab, New badges
-3. Update AdminPanel.tsx with applications view
+1. javaCodePart1.ts — topics 1-6 (Evolution of HLL, OOP, Main Method, Data Types, Operators, Methods)
+2. javaCodePart2.ts — topics 7-12 (Arrays, Strings, Method Overloading, Encapsulation, Constructor, Static)
+3. javaCodePart3.ts — topics 13-18 (Inheritance, Polymorphism, Abstraction, Interface, Exception Handling, Multi Threading)
+4. pythonCodePart1.ts — topics 1-9 same as Java
+5. pythonCodePart2.ts — topics 10-18 same as Java
+6. patternCode.ts — 30 modern interview pattern programs
+7. Update codingData.ts to spread all problems into COURSES
