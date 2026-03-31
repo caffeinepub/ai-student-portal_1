@@ -409,6 +409,7 @@ function generateDJHint(userMessage: string, problem: Problem): string {
  */
 function checkCompilation(language: Language, code: string): CompileStatus {
   const trimmed = code.trim();
+  // Empty or unmodified starter code
   if (
     !trimmed ||
     trimmed === STARTER_CODE[language].trim() ||
@@ -417,7 +418,125 @@ function checkCompilation(language: Language, code: string): CompileStatus {
   ) {
     return "failed";
   }
+
+  if (language === "Java") {
+    // Check for unmatched braces
+    let braceCount = 0;
+    for (const ch of trimmed) {
+      if (ch === "{") braceCount++;
+      if (ch === "}") braceCount--;
+      if (braceCount < 0) return "failed";
+    }
+    if (braceCount !== 0) return "failed";
+    // Check for unmatched parentheses
+    let parenCount = 0;
+    for (const ch of trimmed) {
+      if (ch === "(") parenCount++;
+      if (ch === ")") parenCount--;
+      if (parenCount < 0) return "failed";
+    }
+    if (parenCount !== 0) return "failed";
+    // Must have a class definition
+    if (!trimmed.includes("class ")) return "failed";
+  } else if (language === "Python") {
+    // Check for unmatched parentheses/brackets
+    let parenCount = 0;
+    let bracketCount = 0;
+    for (const ch of trimmed) {
+      if (ch === "(") parenCount++;
+      if (ch === ")") parenCount--;
+      if (ch === "[") bracketCount++;
+      if (ch === "]") bracketCount--;
+      if (parenCount < 0 || bracketCount < 0) return "failed";
+    }
+    if (parenCount !== 0 || bracketCount !== 0) return "failed";
+    // Must have actual code content (at least a print or assignment)
+    if (
+      !trimmed.includes("print") &&
+      !trimmed.includes("=") &&
+      !trimmed.includes("def ")
+    )
+      return "failed";
+  }
+
   return "success";
+}
+
+/**
+ * Extract the simulated output from the student's code by scanning print statements.
+ */
+function simulateOutput(code: string, language: Language): string {
+  const lines = code.split("\n");
+  const outputs: string[] = [];
+
+  if (language === "Java") {
+    for (const line of lines) {
+      const trimLine = line.trim();
+      // System.out.println("string literal")
+      const m1 = trimLine.match(/System\.out\.println\("([^"]*)"\)/);
+      if (m1) {
+        outputs.push(m1[1]);
+        continue;
+      }
+      // System.out.println('char')
+      const m2 = trimLine.match(/System\.out\.println\('([^']*)'\)/);
+      if (m2) {
+        outputs.push(m2[1]);
+        continue;
+      }
+      // System.out.println(number)
+      const m3 = trimLine.match(/System\.out\.println\((\d+(?:\.\d+)?)\)/);
+      if (m3) {
+        outputs.push(m3[1]);
+        continue;
+      }
+      // System.out.println(true/false/null)
+      const m4 = trimLine.match(/System\.out\.println\((true|false|null)\)/);
+      if (m4) {
+        outputs.push(m4[1]);
+        continue;
+      }
+      // System.out.println() - empty
+      if (/System\.out\.println\(\)/.test(trimLine)) {
+        outputs.push("");
+      }
+    }
+  } else if (language === "Python") {
+    for (const line of lines) {
+      const trimLine = line.trim();
+      // print("string")
+      const m1 = trimLine.match(/^print\("([^"]*)"\)/);
+      if (m1) {
+        outputs.push(m1[1]);
+        continue;
+      }
+      // print('string')
+      const m2 = trimLine.match(/^print\('([^']*)'\)/);
+      if (m2) {
+        outputs.push(m2[1]);
+        continue;
+      }
+      // print(number)
+      const m3 = trimLine.match(/^print\((\d+(?:\.\d+)?)\)/);
+      if (m3) {
+        outputs.push(m3[1]);
+        continue;
+      }
+      // print(True/False/None)
+      const m4 = trimLine.match(/^print\((True|False|None)\)/);
+      if (m4) {
+        outputs.push(m4[1]);
+        continue;
+      }
+      // print() - empty
+      if (/^print\(\)$/.test(trimLine)) {
+        outputs.push("");
+      }
+    }
+  }
+
+  if (outputs.length === 0) return "";
+  return outputs.join("\n");
 }
 
 /**
@@ -455,6 +574,8 @@ export default function CodingPractice() {
   // Step states
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileStatus, setCompileStatus] = useState<CompileStatus>(null);
+  const [userOutput, setUserOutput] = useState<string | null>(null);
+  const [expectedOutput, setExpectedOutput] = useState<string | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(null);
@@ -481,7 +602,7 @@ export default function CodingPractice() {
   const allPassed = submitStatus === "all_passed";
 
   // Auto-analyze code when DJ panel opens (only once per problem)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: codeRef/langRef are stable refs; selectedProblem captured at fire time
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional -- codeRef/langRef are stable refs
   useEffect(() => {
     if (!djOpen || !selectedProblem || djAnalyzed) return;
     setDjAnalyzed(true);
@@ -513,6 +634,8 @@ export default function CodingPractice() {
   function resetProblemState() {
     setIsCompiling(false);
     setCompileStatus(null);
+    setUserOutput(null);
+    setExpectedOutput(null);
     setIsSubmitting(false);
     setSubmitStatus(null);
     setTestResults([]);
@@ -605,16 +728,37 @@ export default function CodingPractice() {
     if (!selectedProblem || isCompiling) return;
     setIsCompiling(true);
     setCompileStatus(null);
+    setUserOutput(null);
+    setExpectedOutput(null);
     setSubmitStatus(null);
     setTestResults([]);
 
     await new Promise((r) => setTimeout(r, 700 + Math.random() * 400));
 
-    const status = checkCompilation(
-      activeLanguage,
-      codeByLanguage[activeLanguage],
-    );
-    setCompileStatus(status);
+    const code = codeByLanguage[activeLanguage];
+
+    // Step 1: syntax check
+    const syntaxStatus = checkCompilation(activeLanguage, code);
+    if (syntaxStatus === "failed") {
+      setCompileStatus("failed");
+      setIsCompiling(false);
+      return;
+    }
+
+    // Step 2: simulate output from print statements in code
+    const simOutput = simulateOutput(code, activeLanguage);
+
+    // Step 3: get expected output from first test case
+    const testCases = extractTestCases(selectedProblem);
+    const exp = testCases[0]?.expected ?? "";
+
+    setUserOutput(simOutput === "" ? "(no output)" : simOutput);
+    setExpectedOutput(exp);
+
+    // Step 4: always compare outputs — success ONLY if they match exactly
+    const matches = simOutput.trim() === exp.trim();
+    setCompileStatus(matches ? "success" : "failed");
+
     setIsCompiling(false);
   }
 
@@ -998,46 +1142,78 @@ export default function CodingPractice() {
                     data-ocid="coding.editor"
                   />
 
-                  {/* Compilation Status Banner */}
+                  {/* Output Comparison + Compilation Status */}
                   <AnimatePresence>
-                    {compileStatus === "success" && (
+                    {compileStatus !== null && (
                       <motion.div
-                        key="compile-ok"
+                        key="compile-result"
                         initial={{ opacity: 0, y: -6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg"
-                        data-ocid="coding.success_state"
+                        className="space-y-2"
                       >
-                        <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-                        <div>
-                          <p className="text-green-400 font-semibold text-xs">
-                            Compiled Successfully ✓
-                          </p>
-                          <p className="text-muted-foreground text-xs">
-                            Click Submit to run the test cases.
-                          </p>
-                        </div>
-                      </motion.div>
-                    )}
-                    {compileStatus === "failed" && (
-                      <motion.div
-                        key="compile-fail"
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
-                        data-ocid="coding.error_state"
-                      >
-                        <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                        <div>
-                          <p className="text-red-400 font-semibold text-xs">
-                            Compilation Failed ✗
-                          </p>
-                          <p className="text-muted-foreground text-xs">
-                            Please write a valid solution before running.
-                          </p>
-                        </div>
+                        {/* Output comparison panel */}
+                        {(userOutput !== null || expectedOutput !== null) && (
+                          <div className="rounded-lg border border-border bg-muted/30 overflow-hidden text-xs">
+                            <div className="grid grid-cols-2 divide-x divide-border">
+                              <div className="p-2.5">
+                                <p className="font-semibold text-muted-foreground mb-1">
+                                  Your Output
+                                </p>
+                                <pre
+                                  className={`font-mono whitespace-pre-wrap break-all ${compileStatus === "success" ? "text-green-400" : "text-red-400"}`}
+                                >
+                                  {userOutput ?? ""}
+                                </pre>
+                              </div>
+                              <div className="p-2.5">
+                                <p className="font-semibold text-muted-foreground mb-1">
+                                  Expected Output
+                                </p>
+                                <pre className="font-mono whitespace-pre-wrap break-all text-green-400">
+                                  {expectedOutput ?? ""}
+                                </pre>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {/* Status banner */}
+                        {compileStatus === "success" ? (
+                          <div
+                            className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg"
+                            data-ocid="coding.success_state"
+                          >
+                            <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                            <div>
+                              <p className="text-green-400 font-semibold text-xs">
+                                Compiled Successfully ✓
+                              </p>
+                              <p className="text-muted-foreground text-xs">
+                                Output matches expected! Click Submit to
+                                finalize.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
+                            data-ocid="coding.error_state"
+                          >
+                            <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                            <div>
+                              <p className="text-red-400 font-semibold text-xs">
+                                Compilation Failed ✗
+                              </p>
+                              <p className="text-muted-foreground text-xs">
+                                {userOutput && userOutput !== "(no output)"
+                                  ? "Wrong output — fix your code and Run again."
+                                  : compileStatus === "failed" && !userOutput
+                                    ? "Syntax error — fix your code and Run again."
+                                    : "No output produced — add print statements and Run again."}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -1099,6 +1275,28 @@ export default function CodingPractice() {
                     </Button>
                   </div>
 
+                  {/* Submit Error Banner */}
+                  {submitStatus === "some_failed" && (
+                    <motion.div
+                      key="submit-error"
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
+                    >
+                      <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-red-400 font-semibold text-xs">
+                          Compiler Error ✗
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          Output does not match expected. Fix your code and run
+                          again.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {/* All passed → Next Question */}
                   {allPassed && (
                     <motion.div
@@ -1108,7 +1306,7 @@ export default function CodingPractice() {
                     >
                       <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/30 text-green-400 text-xs font-semibold">
                         <CheckCircle2 className="w-4 h-4" />
-                        All 3 test cases passed! Problem solved.
+                        Compiler Successfully ✓ Output matches expected!
                       </div>
                       <Button
                         className="w-full"
@@ -1139,12 +1337,14 @@ export default function CodingPractice() {
                   )}
                   {compileStatus === "failed" && (
                     <p className="text-xs text-muted-foreground text-center">
-                      Fix your code and click <strong>Run</strong> again.
+                      Syntax error or wrong output. Fix your code and click{" "}
+                      <strong>Run</strong> again.
                     </p>
                   )}
                   {compileStatus === "success" && !submitStatus && (
                     <p className="text-xs text-muted-foreground text-center">
-                      Compilation passed! Now click <strong>Submit</strong>.
+                      Compiled! Click <strong>Submit</strong> to check your
+                      output.
                     </p>
                   )}
 
