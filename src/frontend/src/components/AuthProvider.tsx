@@ -10,9 +10,13 @@ import {
 } from "../hooks/useAuth";
 import { hashPassword } from "../utils/hashUtils";
 
-// Motoko variants come back as objects: { ok: null }, { emailTaken: null }, etc.
-function hasKey<T extends object>(obj: T, key: string): boolean {
-  return typeof obj === "object" && obj !== null && key in obj;
+// backend.ts converts Motoko variants into enum strings: "ok", "emailTaken", etc.
+// Helper to check both enum string and legacy object formats
+function isVariant(result: unknown, key: string): boolean {
+  if (result === key) return true;
+  if (typeof result === "object" && result !== null && key in result)
+    return true;
+  return false;
 }
 
 export default function AuthProvider({ children }: PropsWithChildren) {
@@ -54,9 +58,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           securityQuestion.trim(),
           securityAnswerHash,
         );
-        // Motoko returns variant objects like { ok: null }, { emailTaken: null }
-        const resultObj = result as unknown as object;
-        if (hasKey(resultObj, "ok")) {
+        if (isVariant(result, "ok")) {
           const authUser: AuthUser = {
             name: name.trim(),
             email: email.trim().toLowerCase(),
@@ -65,7 +67,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           setUser(authUser);
           return { success: true };
         }
-        if (hasKey(resultObj, "emailTaken")) {
+        if (isVariant(result, "emailTaken")) {
           return {
             success: false,
             error: "An account with this email already exists.",
@@ -145,20 +147,19 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           securityAnswerHash,
           newPasswordHash,
         );
-        const resultObj = result as unknown as object;
-        if (hasKey(resultObj, "ok")) {
+        if (isVariant(result, "ok")) {
           return { success: true };
         }
-        if (hasKey(resultObj, "notFound")) {
+        if (isVariant(result, "notFound")) {
           return {
             success: false,
             error: "No account found with this email.",
           };
         }
-        if (hasKey(resultObj, "wrongAnswer")) {
+        if (isVariant(result, "wrongAnswer")) {
           return { success: false, error: "Incorrect security answer." };
         }
-        if (hasKey(resultObj, "rateLimited")) {
+        if (isVariant(result, "rateLimited")) {
           return {
             success: false,
             error: "Too many attempts. Please try again later.",
