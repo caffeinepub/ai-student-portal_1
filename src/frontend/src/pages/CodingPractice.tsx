@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  Bot,
   CheckCircle2,
   Circle,
   Clock,
@@ -20,10 +21,11 @@ import {
   Info,
   Play,
   Send,
+  X,
   XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export type { Course, Problem };
 
@@ -71,8 +73,142 @@ const STARTER_CODE: Record<Language, string> = {
 `,
 };
 
+type DJMessage = { id: string; from: "dj" | "user"; text: string };
 type CompileStatus = null | "success" | "failed";
 type SubmitStatus = null | "checking" | "all_passed" | "some_failed";
+
+const DJ_INIT_MESSAGE: DJMessage = {
+  id: "dj-init",
+  from: "dj",
+  text: "Hi! I'm DJ 🤖 your coding assistant. Ask me if you're stuck! (5 hints available)",
+};
+
+/**
+ * Generate a topic-aware hint for the DJ chatbot.
+ * Uses keyword matching on the user's message + problem topic/title.
+ * Never returns a full solution — only guiding hints.
+ */
+function generateDJHint(userMessage: string, problem: Problem): string {
+  const combined =
+    `${userMessage} ${problem.topic} ${problem.title}`.toLowerCase();
+
+  if (combined.includes("array")) {
+    return "💡 Arrays Hint: Use an index to traverse elements with a for loop. For dynamic sizing, use ArrayList<>. Arrays.sort() can help order elements. Think about edge cases like empty arrays or single-element inputs!";
+  }
+  if (combined.includes("string")) {
+    return "💡 Strings Hint: Try StringBuilder for efficient concatenation. Useful methods: charAt(), substring(), split(), toLowerCase(), trim(). Remember — Strings are immutable in Java; every modification creates a new object!";
+  }
+  if (
+    combined.includes("loop") ||
+    combined.includes("iteration") ||
+    combined.includes("while")
+  ) {
+    return "💡 Loops Hint: Make sure your loop condition eventually becomes false to avoid infinite loops! Double-check: the starting value, the exit condition, and how the variable changes on each iteration.";
+  }
+  if (combined.includes("recursion") || combined.includes("recursive")) {
+    return "💡 Recursion Hint: Every recursive function needs: (1) A BASE CASE — when to stop recursing, and (2) A RECURSIVE CASE — calling itself with a smaller/simpler input. Make sure the base case is always reachable!";
+  }
+  if (
+    combined.includes("exception") ||
+    combined.includes("try") ||
+    combined.includes("catch")
+  ) {
+    return "💡 Exception Handling Hint: Wrap risky code in try { } catch(ExceptionType e) { }. Use 'finally' for cleanup that must always run. Checked exceptions require 'throws' declaration or try-catch. Use specific exception types, not just Exception!";
+  }
+  if (
+    combined.includes("thread") ||
+    combined.includes("runnable") ||
+    combined.includes("concurrent") ||
+    combined.includes("multi")
+  ) {
+    return "💡 Multi-Threading Hint: Implement the Runnable interface or extend the Thread class. Override run() with your task. Call start() (NOT run()) to launch a new thread. Use synchronized keyword or locks for shared resource safety!";
+  }
+  if (
+    combined.includes("object") ||
+    combined.includes("oop") ||
+    combined.includes("oriented")
+  ) {
+    return "💡 OOP Hint: Classes are blueprints; objects are instances. Focus on what attributes (fields) and behaviors (methods) your class needs. Use constructors to initialize state. Think in terms of real-world entities!";
+  }
+  if (
+    combined.includes("inherit") ||
+    combined.includes("extends") ||
+    combined.includes("parent") ||
+    combined.includes("child")
+  ) {
+    return "💡 Inheritance Hint: Use the 'extends' keyword. Call 'super()' in the child constructor to initialize the parent. The child class inherits all non-private members. Override methods in the child class to change behavior!";
+  }
+  if (combined.includes("polymorphism") || combined.includes("override")) {
+    return "💡 Polymorphism Hint: Use the @Override annotation when overriding methods. A parent-type reference can hold a child object. The ACTUAL object type (not the reference type) determines which method runs at runtime — that's runtime polymorphism!";
+  }
+  if (combined.includes("constructor")) {
+    return "💡 Constructor Hint: A constructor has the same name as the class and no return type. Use 'this()' to call another constructor in the same class. 'super()' calls the parent constructor. Both must be the first statement in the constructor body!";
+  }
+  if (combined.includes("static")) {
+    return "💡 Static Hint: Static members belong to the CLASS itself, not to any instance. Call them as ClassName.method(). Static methods CANNOT access instance variables or use 'this'. Great for utility and helper methods!";
+  }
+  if (combined.includes("interface") || combined.includes("implements")) {
+    return "💡 Interface Hint: Use the 'implements' keyword. You MUST provide implementations for all abstract methods declared in the interface. A class can implement multiple interfaces — unlike single-class inheritance!";
+  }
+  if (combined.includes("abstract") || combined.includes("abstraction")) {
+    return "💡 Abstraction Hint: Abstract classes cannot be instantiated directly. Mark a class/method with the 'abstract' keyword. Subclasses MUST implement all abstract methods. Use when you want a partial base implementation!";
+  }
+  if (
+    combined.includes("encapsulat") ||
+    combined.includes("getter") ||
+    combined.includes("setter") ||
+    combined.includes("private")
+  ) {
+    return "💡 Encapsulation Hint: Keep fields private and expose them via public getter/setter methods. This protects data integrity and hides internal implementation. It's the 'data hiding' principle of OOP!";
+  }
+  if (combined.includes("overload") || combined.includes("overloading")) {
+    return "💡 Method Overloading Hint: Same method name, but different parameter lists (count, type, or order). The return type alone does NOT distinguish overloaded methods. The compiler picks the right version based on the arguments you pass!";
+  }
+  if (
+    combined.includes("data type") ||
+    combined.includes("datatype") ||
+    combined.includes("primitive") ||
+    combined.includes("variable")
+  ) {
+    return "💡 Data Types Hint: Java primitives: int, double, boolean, char, long, float, byte, short. Reference types are objects. Use wrapper classes (Integer, Double, Boolean) when you need objects — like inside collections!";
+  }
+  if (
+    combined.includes("operator") ||
+    combined.includes("arithmetic") ||
+    combined.includes("bitwise") ||
+    combined.includes("ternary")
+  ) {
+    return "💡 Operators Hint: Remember precedence! Ternary: condition ? trueValue : falseValue. Don't mix = (assignment) with == (comparison). Integer division truncates: 7/2 = 3 — use 7.0/2 to get 3.5!";
+  }
+  if (
+    combined.includes("main method") ||
+    combined.includes("main(") ||
+    combined.includes("entry point")
+  ) {
+    return "💡 Main Method Hint: Must be exactly: public static void main(String[] args). It's the JVM entry point. The 'args' array holds command-line arguments as Strings. There can only be one entry point per program run!";
+  }
+  if (
+    combined.includes("evolution") ||
+    combined.includes("hll") ||
+    combined.includes("high level") ||
+    combined.includes("history") ||
+    combined.includes("language")
+  ) {
+    return "💡 Evolution of HLL Hint: Programming evolved: Machine Language → Assembly Language → High-Level Languages. Key milestones: FORTRAN (1957), COBOL, C, C++, Java (1995). HLLs abstract away hardware details so programmers can focus on logic!";
+  }
+  if (
+    combined.includes("pattern") ||
+    combined.includes("star") ||
+    combined.includes("pyramid") ||
+    combined.includes("triangle") ||
+    combined.includes("diamond")
+  ) {
+    return "💡 Pattern Programs Hint: Use nested loops — outer loop controls rows, inner loop controls columns. Figure out how many spaces and symbols go in each row using a formula. Start with a 3-row version before scaling up!";
+  }
+
+  // Generic fallback
+  return "💡 Try breaking the problem into smaller steps. What is the very first thing you need to do? Write the logic in plain English before coding. Study the example inputs and outputs carefully — there's a pattern there!";
+}
 
 /**
  * Simulate compilation check:
@@ -127,6 +263,13 @@ export default function CodingPractice() {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(null);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
 
+  // DJ AI Chatbot state
+  const [djOpen, setDjOpen] = useState(false);
+  const [djMessages, setDjMessages] = useState<DJMessage[]>([DJ_INIT_MESSAGE]);
+  const [djHintsUsed, setDjHintsUsed] = useState(0);
+  const [djInput, setDjInput] = useState("");
+  const djChatEndRef = useRef<HTMLDivElement>(null);
+
   const allPassed = submitStatus === "all_passed";
 
   function resetProblemState() {
@@ -149,6 +292,53 @@ export default function CodingPractice() {
       Python: p.starterCode || STARTER_CODE.Python,
       JavaScript: STARTER_CODE.JavaScript,
     });
+    // Reset DJ for new question
+    setDjOpen(false);
+    setDjMessages([DJ_INIT_MESSAGE]);
+    setDjHintsUsed(0);
+    setDjInput("");
+  }
+
+  function handleAskDJ() {
+    const userText = djInput.trim();
+    if (!userText || !selectedProblem) return;
+
+    const ts = Date.now();
+    const userMsg: DJMessage = {
+      id: `user-${ts}`,
+      from: "user",
+      text: userText,
+    };
+    setDjInput("");
+
+    const scrollToBottom = () => {
+      setTimeout(() => {
+        djChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 50);
+    };
+
+    if (djHintsUsed >= 5) {
+      setDjMessages((prev) => [
+        ...prev,
+        userMsg,
+        {
+          id: `dj-limit-${ts}`,
+          from: "dj",
+          text: "You've used all 5 hints for this question. Try solving it yourself! 💪",
+        },
+      ]);
+      scrollToBottom();
+      return;
+    }
+
+    const hint = generateDJHint(userText, selectedProblem);
+    setDjMessages((prev) => [
+      ...prev,
+      userMsg,
+      { id: `dj-hint-${ts}`, from: "dj", text: hint },
+    ]);
+    setDjHintsUsed((prev) => prev + 1);
+    scrollToBottom();
   }
 
   async function handleRun() {
@@ -158,7 +348,6 @@ export default function CodingPractice() {
     setSubmitStatus(null);
     setTestResults([]);
 
-    // Simulate compile delay
     await new Promise((r) => setTimeout(r, 700 + Math.random() * 400));
 
     const status = checkCompilation(
@@ -197,7 +386,6 @@ export default function CodingPractice() {
     if (nextIndex < problems.length) {
       openProblem(problems[nextIndex], nextIndex);
     } else {
-      // No more problems – go back to list
       setSelectedProblem(null);
       resetProblemState();
     }
@@ -243,6 +431,7 @@ export default function CodingPractice() {
                 setFilter("All");
               }
             }}
+            data-ocid="coding.secondary_button"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -378,6 +567,7 @@ export default function CodingPractice() {
                   size="sm"
                   variant={filter === f ? "default" : "outline"}
                   onClick={() => setFilter(f)}
+                  data-ocid="coding.tab"
                 >
                   {f}
                 </Button>
@@ -418,6 +608,7 @@ export default function CodingPractice() {
                         className="w-full"
                         variant={solved.has(prob.id) ? "secondary" : "default"}
                         onClick={() => openProblem(prob, i)}
+                        data-ocid="coding.primary_button"
                       >
                         {solved.has(prob.id) ? "Review" : "Solve Problem"}
                       </Button>
@@ -453,7 +644,7 @@ export default function CodingPractice() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Left: Problem description + Test Cases */}
+              {/* Left: Problem description + Reference Test Cases + Results */}
               <div className="space-y-3">
                 <Card>
                   <CardHeader>
@@ -465,18 +656,67 @@ export default function CodingPractice() {
                     <pre className="text-sm text-foreground whitespace-pre-wrap leading-relaxed font-body">
                       {selectedProblem.description}
                     </pre>
+
+                    {/* Problem hint box */}
                     <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                       <p className="text-xs font-semibold text-yellow-400 mb-1">
-                        Hint
+                        💡 Problem Hint
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {selectedProblem.hint}
                       </p>
                     </div>
+
+                    {/* ── Enhancement 2: Reference Test Cases — always visible before coding ── */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-px flex-1 bg-border" />
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                          Reference Test Cases
+                        </p>
+                        <div className="h-px flex-1 bg-border" />
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center italic">
+                        Your output must match these exactly
+                      </p>
+                      {extractTestCases(selectedProblem).map((tc) => (
+                        <div
+                          key={tc.id}
+                          className="rounded-lg border border-border bg-muted/20 p-3 text-xs space-y-1.5"
+                          data-ocid="coding.panel"
+                        >
+                          <p className="font-semibold text-foreground flex items-center gap-1.5 mb-2">
+                            <span className="w-5 h-5 rounded-full bg-purple-500/20 border border-purple-500/30 inline-flex items-center justify-center text-[10px] text-purple-400 font-bold">
+                              {tc.id}
+                            </span>
+                            {tc.label}
+                          </p>
+                          <div className="font-mono space-y-1 pl-1">
+                            <div className="flex gap-1 items-start">
+                              <span className="text-muted-foreground shrink-0">
+                                Input:
+                              </span>
+                              <span className="text-foreground bg-muted/50 px-1.5 py-0.5 rounded break-all">
+                                {tc.input || "(none)"}
+                              </span>
+                            </div>
+                            <div className="flex gap-1 items-start">
+                              <span className="text-muted-foreground shrink-0">
+                                Expected Output:
+                              </span>
+                              <span className="text-green-400 font-semibold bg-green-500/10 border border-green-500/20 px-1.5 py-0.5 rounded break-all">
+                                {tc.expected}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* ── End Reference Test Cases ── */}
                   </CardContent>
                 </Card>
 
-                {/* Test Cases Panel — visible only after Submit */}
+                {/* Test Cases Results — visible only after Submit */}
                 {submitStatus !== null && (
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
@@ -486,7 +726,7 @@ export default function CodingPractice() {
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-display flex items-center gap-2">
                           <Circle className="w-4 h-4 text-purple-400" />
-                          Test Cases
+                          Test Case Results
                           {submitStatus === "checking" && (
                             <span className="ml-auto text-xs text-yellow-400 font-semibold animate-pulse">
                               Checking...
@@ -505,7 +745,7 @@ export default function CodingPractice() {
                           )}
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-2 pt-0">
+                      <CardContent className="space-y-3 pt-0">
                         {extractTestCases(selectedProblem).map((tc, idx) => {
                           const result = testResults[idx];
                           const status =
@@ -528,8 +768,12 @@ export default function CodingPractice() {
                                     : "bg-muted/30 border-border"
                               }`}
                             >
+                              {/* Header row */}
                               <div className="flex items-center justify-between mb-2">
-                                <span className="font-semibold text-foreground">
+                                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                  <span className="w-4 h-4 rounded-full bg-muted/60 inline-flex items-center justify-center text-[9px] font-bold">
+                                    {tc.id}
+                                  </span>
                                   {tc.label}
                                 </span>
                                 {status === "pending" && (
@@ -545,40 +789,71 @@ export default function CodingPractice() {
                                   <AlertCircle className="w-3.5 h-3.5 text-red-400" />
                                 )}
                               </div>
-                              <div className="space-y-1 font-mono">
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    Input:{" "}
-                                  </span>
-                                  <span className="text-foreground">
+
+                              {/* ── Enhancement 3: 4-column comparison layout ── */}
+                              <div className="grid grid-cols-4 gap-2">
+                                {/* Input */}
+                                <div className="space-y-1">
+                                  <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
+                                    Input
+                                  </p>
+                                  <p className="font-mono text-foreground bg-muted/30 rounded px-1.5 py-1 break-all min-h-[28px]">
                                     {tc.input || "(none)"}
-                                  </span>
+                                  </p>
                                 </div>
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    Expected:{" "}
-                                  </span>
-                                  <span className="text-foreground">
+                                {/* Expected Output */}
+                                <div className="space-y-1">
+                                  <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
+                                    Expected
+                                  </p>
+                                  <p className="font-mono text-foreground bg-muted/30 rounded px-1.5 py-1 break-all min-h-[28px]">
                                     {tc.expected}
-                                  </span>
+                                  </p>
                                 </div>
-                                {result && (
-                                  <div>
-                                    <span className="text-muted-foreground">
-                                      Status:{" "}
-                                    </span>
-                                    <span
-                                      className={
-                                        result.passed
-                                          ? "text-green-400 font-semibold"
-                                          : "text-red-400 font-semibold"
-                                      }
-                                    >
-                                      {result.passed ? "✓ Passed" : "✗ Failed"}
-                                    </span>
-                                  </div>
-                                )}
+                                {/* Your Output */}
+                                <div className="space-y-1">
+                                  <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
+                                    Your Output
+                                  </p>
+                                  <p
+                                    className={`font-mono rounded px-1.5 py-1 break-all min-h-[28px] ${
+                                      result
+                                        ? result.passed
+                                          ? "bg-green-500/10 text-green-300"
+                                          : "bg-red-500/10 text-red-300"
+                                        : "bg-muted/30 text-foreground"
+                                    }`}
+                                  >
+                                    {result ? result.actual : "—"}
+                                  </p>
+                                </div>
+                                {/* Status */}
+                                <div className="space-y-1">
+                                  <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
+                                    Status
+                                  </p>
+                                  <p
+                                    className={`font-semibold rounded px-1.5 py-1 min-h-[28px] ${
+                                      status === "running"
+                                        ? "text-yellow-400"
+                                        : status === "pass"
+                                          ? "text-green-400"
+                                          : status === "fail"
+                                            ? "text-red-400"
+                                            : "text-muted-foreground"
+                                    }`}
+                                  >
+                                    {status === "running"
+                                      ? "⏳"
+                                      : status === "pass"
+                                        ? "✓ Pass"
+                                        : status === "fail"
+                                          ? "✗ Fail"
+                                          : "—"}
+                                  </p>
+                                </div>
                               </div>
+                              {/* ── End 4-column layout ── */}
                             </div>
                           );
                         })}
@@ -598,6 +873,7 @@ export default function CodingPractice() {
                               className="w-full"
                               size="sm"
                               onClick={handleNextQuestion}
+                              data-ocid="coding.primary_button"
                             >
                               {hasNextProblem ? (
                                 <>
@@ -619,12 +895,39 @@ export default function CodingPractice() {
                 )}
               </div>
 
-              {/* Right: Code Editor */}
+              {/* Right: Code Editor + DJ Chatbot */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-display">
-                    Code Editor
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <CardTitle className="text-base font-display">
+                      Code Editor
+                    </CardTitle>
+                    {/* ── Enhancement 1: Ask DJ button ── */}
+                    <Button
+                      variant={djOpen ? "default" : "outline"}
+                      size="sm"
+                      className={`text-xs gap-1.5 ${
+                        djOpen
+                          ? "bg-purple-600 hover:bg-purple-700 border-purple-600"
+                          : "border-purple-500/40 hover:bg-purple-500/10 text-purple-300 hover:text-purple-200"
+                      }`}
+                      onClick={() => setDjOpen(!djOpen)}
+                      data-ocid="dj.open_modal_button"
+                    >
+                      <Bot className="w-3.5 h-3.5" />
+                      Ask DJ 🤖
+                      <span
+                        className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                          djHintsUsed >= 5
+                            ? "bg-red-500/25 text-red-400"
+                            : "bg-purple-500/25 text-purple-300"
+                        }`}
+                      >
+                        {djHintsUsed}/5
+                      </span>
+                    </Button>
+                  </div>
+
                   {/* Language tab */}
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {(["Java", "Python"] as Language[]).map((lang) => {
@@ -644,9 +947,10 @@ export default function CodingPractice() {
                     })}
                   </div>
                 </CardHeader>
+
                 <CardContent className="space-y-3 pt-0">
                   <textarea
-                    className="w-full h-72 bg-muted/50 border border-border rounded-lg p-3 text-sm font-mono text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    className="w-full h-64 bg-muted/50 border border-border rounded-lg p-3 text-sm font-mono text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
                     value={codeByLanguage[activeLanguage]}
                     onChange={(e) =>
                       setCodeByLanguage((prev) => ({
@@ -656,6 +960,7 @@ export default function CodingPractice() {
                     }
                     spellCheck={false}
                     placeholder={`Write your ${activeLanguage} solution here...`}
+                    data-ocid="coding.editor"
                   />
 
                   {/* Compilation Status Banner */}
@@ -667,6 +972,7 @@ export default function CodingPractice() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
                         className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg"
+                        data-ocid="coding.success_state"
                       >
                         <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
                         <div>
@@ -686,6 +992,7 @@ export default function CodingPractice() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
                         className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
+                        data-ocid="coding.error_state"
                       >
                         <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
                         <div>
@@ -702,13 +1009,13 @@ export default function CodingPractice() {
 
                   {/* Action Buttons */}
                   <div className="flex gap-2">
-                    {/* Run Button */}
                     <Button
                       variant="outline"
                       size="sm"
                       className="flex-1"
                       onClick={handleRun}
                       disabled={isCompiling || isSubmitting || allPassed}
+                      data-ocid="coding.secondary_button"
                     >
                       {isCompiling ? (
                         <>
@@ -723,7 +1030,6 @@ export default function CodingPractice() {
                       )}
                     </Button>
 
-                    {/* Submit Button — enabled only after successful compile */}
                     <Button
                       size="sm"
                       className="flex-1"
@@ -737,6 +1043,7 @@ export default function CodingPractice() {
                       title={
                         compileStatus !== "success" ? "Run your code first" : ""
                       }
+                      data-ocid="coding.submit_button"
                     >
                       {isSubmitting ? (
                         <>
@@ -773,6 +1080,123 @@ export default function CodingPractice() {
                       Compilation passed! Now click <strong>Submit</strong>.
                     </p>
                   )}
+
+                  {/* ── Enhancement 1: DJ AI Chatbot Panel ── */}
+                  <AnimatePresence>
+                    {djOpen && (
+                      <motion.div
+                        key="dj-panel"
+                        initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 12, scale: 0.97 }}
+                        transition={{ duration: 0.2 }}
+                        className="border border-purple-500/30 rounded-xl bg-purple-500/5 overflow-hidden"
+                        data-ocid="dj.panel"
+                      >
+                        {/* DJ Panel Header */}
+                        <div className="flex items-center justify-between px-3 py-2.5 bg-purple-500/10 border-b border-purple-500/20">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center">
+                              <Bot className="w-3.5 h-3.5 text-purple-400" />
+                            </div>
+                            <span className="text-sm font-semibold text-purple-200">
+                              DJ - AI Helper 🤖
+                            </span>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                djHintsUsed >= 5
+                                  ? "bg-red-500/15 text-red-400 border-red-500/25"
+                                  : "bg-purple-500/15 text-purple-300 border-purple-500/25"
+                              }`}
+                            >
+                              {djHintsUsed}/5 hints used
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-purple-500/10"
+                            onClick={() => setDjOpen(false)}
+                            data-ocid="dj.close_button"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+
+                        {/* Chat Messages */}
+                        <div className="h-52 overflow-y-auto p-3 space-y-2.5">
+                          {djMessages.map((msg) => (
+                            <div
+                              key={msg.id}
+                              className={`flex ${
+                                msg.from === "user"
+                                  ? "justify-end"
+                                  : "justify-start"
+                              }`}
+                            >
+                              <div
+                                className={`max-w-[88%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                                  msg.from === "dj"
+                                    ? "bg-purple-500/15 text-purple-100 border border-purple-500/20 rounded-tl-sm"
+                                    : "bg-primary/15 text-foreground border border-primary/20 rounded-tr-sm"
+                                }`}
+                              >
+                                {msg.from === "dj" && (
+                                  <span className="font-bold text-purple-400 text-[11px] block mb-0.5">
+                                    DJ 🤖
+                                  </span>
+                                )}
+                                {msg.text}
+                              </div>
+                            </div>
+                          ))}
+                          <div ref={djChatEndRef} />
+                        </div>
+
+                        {/* Hints exhausted notice */}
+                        {djHintsUsed >= 5 && (
+                          <div className="mx-3 mb-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 text-center">
+                            All 5 hints used. You've got this — try it yourself!
+                            💪
+                          </div>
+                        )}
+
+                        {/* Input Area */}
+                        <div className="flex gap-2 p-3 border-t border-purple-500/20">
+                          <input
+                            type="text"
+                            value={djInput}
+                            onChange={(e) => setDjInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleAskDJ();
+                              }
+                            }}
+                            placeholder={
+                              djHintsUsed >= 5
+                                ? "All 5 hints used!"
+                                : `Ask about this ${selectedProblem?.topic ?? "problem"}...`
+                            }
+                            disabled={djHintsUsed >= 5}
+                            className="flex-1 text-xs bg-muted/50 border border-purple-500/20 rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            data-ocid="dj.input"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleAskDJ}
+                            disabled={!djInput.trim() || djHintsUsed >= 5}
+                            className="border-purple-500/30 hover:bg-purple-500/15 text-purple-300 hover:text-purple-200 disabled:opacity-40"
+                            data-ocid="dj.submit_button"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {/* ── End DJ Chatbot ── */}
                 </CardContent>
               </Card>
             </div>

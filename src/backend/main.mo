@@ -768,16 +768,18 @@ actor {
   };
 
   // Job Application System
-  // Accepts applications for both backend-stored jobs and fallback (static) jobs
+  // No ICP role check: students use custom email/password auth, not ICP identity.
+  // Duplicate prevention uses email + jobId so each student applies once per job.
   public shared ({ caller }) func applyForJob(jobId : Text, name : Text, email : Text, phone : Text, coverLetter : Text) : async Text {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can apply for jobs");
+    // Validate required fields
+    if (name.size() == 0 or email.size() == 0 or phone.size() == 0 or coverLetter.size() == 0) {
+      Runtime.trap("All fields are required");
     };
 
-    // Prevent duplicate applications from same user for same job
+    // Prevent duplicate applications from same email for same job
     let alreadyApplied = applications.values().toArray().filter(
       func(app : JobApplication) : Bool {
-        app.principal == caller and app.jobId == jobId
+        app.email == email and app.jobId == jobId
       }
     ).size() > 0;
 
@@ -801,11 +803,10 @@ actor {
     applicationId;
   };
 
+  // Returns applications for this caller.
+  // Note: students use custom auth so principal may be anonymous;
+  // the frontend also tracks applications via localStorage for reliability.
   public query ({ caller }) func getMyApplications() : async [JobApplication] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view their applications");
-    };
-
     applications.values().toArray().filter(func(app) { app.principal == caller });
   };
 
