@@ -2,7 +2,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { COURSES, type Course, type Problem } from "@/data/codingData";
-import { ArrowLeft, BookOpen, CheckCircle2, Code2 } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  CheckCircle2,
+  Code2,
+  Play,
+  Send,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
@@ -16,16 +23,69 @@ const DIFF_COLORS = {
 
 type Language = "Java" | "Python" | "JavaScript" | "C" | "SQL";
 
-// Language badge styles for problem cards (smaller, non-interactive)
-const LANG_BADGE: Record<Language, string> = {
-  Java: "bg-orange-500/10 text-orange-400 border-orange-500/25",
-  Python: "bg-blue-500/10 text-blue-400 border-blue-500/25",
-  JavaScript: "bg-yellow-500/10 text-yellow-500 border-yellow-500/25",
-  C: "bg-gray-500/10 text-gray-400 border-gray-500/25",
-  SQL: "bg-green-500/10 text-green-400 border-green-500/25",
+const LANG_TAB_STYLES: Record<
+  Language,
+  { active: string; inactive: string; badge: string }
+> = {
+  Java: {
+    active: "bg-orange-500 text-white border-orange-500",
+    inactive: "text-orange-400 border-orange-500/30 hover:border-orange-500/60",
+    badge: "bg-orange-500/10 text-orange-400 border-orange-500/25",
+  },
+  Python: {
+    active: "bg-blue-500 text-white border-blue-500",
+    inactive: "text-blue-400 border-blue-500/30 hover:border-blue-500/60",
+    badge: "bg-blue-500/10 text-blue-400 border-blue-500/25",
+  },
+  JavaScript: {
+    active: "bg-yellow-500 text-black border-yellow-500",
+    inactive: "text-yellow-400 border-yellow-500/30 hover:border-yellow-500/60",
+    badge: "bg-yellow-500/10 text-yellow-500 border-yellow-500/25",
+  },
+  C: {
+    active: "bg-gray-500 text-white border-gray-500",
+    inactive: "text-gray-400 border-gray-500/30 hover:border-gray-500/60",
+    badge: "bg-gray-500/10 text-gray-400 border-gray-500/25",
+  },
+  SQL: {
+    active: "bg-green-500 text-white border-green-500",
+    inactive: "text-green-400 border-green-500/30 hover:border-green-500/60",
+    badge: "bg-green-500/10 text-green-400 border-green-500/25",
+  },
 };
 
 const ALL_LANGUAGES: Language[] = ["Java", "Python", "JavaScript", "C", "SQL"];
+
+const STARTER_CODE: Record<Language, string> = {
+  Java: `public class Solution {
+    public static void main(String[] args) {
+        // Write your solution here
+        
+    }
+}`,
+  Python: `def solution():
+    # Write your solution here
+    pass
+
+if __name__ == "__main__":
+    solution()`,
+  JavaScript: `function solution() {
+    // Write your solution here
+    
+}
+
+console.log(solution());`,
+  C: `#include <stdio.h>
+
+int main() {
+    // Write your solution here
+    
+    return 0;
+}`,
+  SQL: `-- Write your SQL query here
+SELECT * FROM table_name
+WHERE condition;`,
+};
 
 export default function CodingPractice() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -34,13 +94,44 @@ export default function CodingPractice() {
   const [filter, setFilter] = useState<"All" | "Easy" | "Medium" | "Hard">(
     "All",
   );
+  const [activeLanguage, setActiveLanguage] = useState<Language>("Java");
+  const [codeByLanguage, setCodeByLanguage] = useState<
+    Record<Language, string>
+  >({ ...STARTER_CODE });
+  const [output, setOutput] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   function openProblem(p: Problem) {
     setSelectedProblem(p);
+    setOutput(null);
+    setSubmitted(false);
+    // Pre-fill starter code from problem if available
+    setCodeByLanguage((prev) => ({
+      ...prev,
+      Java: p.starterCode || STARTER_CODE.Java,
+    }));
   }
 
   function markSolved(p: Problem) {
     setSolved((prev) => new Set([...prev, p.id]));
+  }
+
+  function handleRun() {
+    setOutput(
+      `Running ${activeLanguage} code...\n\n// Output will appear here\n// (This is a practice environment - review your logic against the example output)`,
+    );
+  }
+
+  function handleSubmit() {
+    setSubmitted(true);
+    setOutput(
+      `✅ Code submitted in ${activeLanguage}!\n\nReview the expected output above and compare with your solution.`,
+    );
+    if (selectedProblem) markSolved(selectedProblem);
+  }
+
+  function handleCodeChange(val: string) {
+    setCodeByLanguage((prev) => ({ ...prev, [activeLanguage]: val }));
   }
 
   const filteredProblems = selectedCourse
@@ -70,6 +161,8 @@ export default function CodingPractice() {
             onClick={() => {
               if (selectedProblem) {
                 setSelectedProblem(null);
+                setOutput(null);
+                setSubmitted(false);
               } else {
                 setSelectedCourse(null);
                 setFilter("All");
@@ -171,12 +264,12 @@ export default function CodingPractice() {
                           Hard {stats.hard}
                         </span>
                       </div>
-                      {/* Language indicators on course card */}
+                      {/* Language indicators */}
                       <div className="flex flex-wrap gap-1">
                         {ALL_LANGUAGES.map((lang) => (
                           <span
                             key={lang}
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${LANG_BADGE[lang]}`}
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${LANG_TAB_STYLES[lang].badge}`}
                           >
                             {lang}
                           </span>
@@ -212,7 +305,6 @@ export default function CodingPractice() {
             exit={{ opacity: 0, y: -16 }}
             className="space-y-4"
           >
-            {/* Filter */}
             <div className="flex gap-2" data-ocid="coding.filter.tab">
               {(["All", "Easy", "Medium", "Hard"] as const).map((f) => (
                 <Button
@@ -257,7 +349,7 @@ export default function CodingPractice() {
                             {ALL_LANGUAGES.map((lang) => (
                               <span
                                 key={lang}
-                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${LANG_BADGE[lang]}`}
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${LANG_TAB_STYLES[lang].badge}`}
                                 title={`Solve in ${lang}`}
                               >
                                 {lang}
@@ -280,7 +372,7 @@ export default function CodingPractice() {
                         onClick={() => openProblem(prob)}
                         data-ocid={`coding.solve.button.${i + 1}`}
                       >
-                        {solved.has(prob.id) ? "Review" : "View Problem"}
+                        {solved.has(prob.id) ? "Review" : "Solve Problem"}
                       </Button>
                     </CardContent>
                   </Card>
@@ -290,51 +382,119 @@ export default function CodingPractice() {
           </motion.div>
         )}
 
-        {/* Problem Description Only (no code editor) */}
+        {/* Problem Solver with Code Editor */}
         {selectedProblem && (
           <motion.div
             key="problem-detail"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="max-w-3xl"
+            className="space-y-4"
           >
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base font-display">
-                  Problem Description
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <pre className="text-sm text-foreground whitespace-pre-wrap leading-relaxed font-body">
-                  {selectedProblem.description}
-                </pre>
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-yellow-400 mb-1">
-                    Hint
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedProblem.hint}
-                  </p>
-                </div>
-                {!solved.has(selectedProblem.id) && (
-                  <Button
-                    className="w-full"
-                    onClick={() => markSolved(selectedProblem)}
-                    data-ocid="coding.mark-solved.button"
-                  >
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Mark as Solved
-                  </Button>
-                )}
-                {solved.has(selectedProblem.id) && (
-                  <div className="flex items-center gap-2 text-green-400 text-sm font-medium justify-center py-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Problem Solved!
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Left: Problem description */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base font-display">
+                    Problem Description
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <pre className="text-sm text-foreground whitespace-pre-wrap leading-relaxed font-body">
+                    {selectedProblem.description}
+                  </pre>
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-yellow-400 mb-1">
+                      Hint
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedProblem.hint}
+                    </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  {solved.has(selectedProblem.id) && (
+                    <div className="flex items-center gap-2 text-green-400 text-sm font-medium justify-center py-2 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Problem Solved!
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Right: Code Editor */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-display">
+                      Code Editor
+                    </CardTitle>
+                  </div>
+                  {/* Language Tabs */}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {ALL_LANGUAGES.map((lang) => (
+                      <button
+                        type="button"
+                        key={lang}
+                        onClick={() => setActiveLanguage(lang)}
+                        className={`px-3 py-1 rounded text-xs font-semibold border transition-colors ${
+                          activeLanguage === lang
+                            ? LANG_TAB_STYLES[lang].active
+                            : `bg-transparent ${LANG_TAB_STYLES[lang].inactive}`
+                        }`}
+                        data-ocid={`coding.lang-tab.${lang.toLowerCase()}`}
+                      >
+                        {lang}
+                      </button>
+                    ))}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  <textarea
+                    className="w-full h-64 bg-muted/50 border border-border rounded-lg p-3 text-sm font-mono text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    value={codeByLanguage[activeLanguage]}
+                    onChange={(e) => handleCodeChange(e.target.value)}
+                    spellCheck={false}
+                    placeholder={`Write your ${activeLanguage} solution here...`}
+                    data-ocid="coding.editor.textarea"
+                  />
+
+                  {/* Output */}
+                  {output && (
+                    <div className="bg-muted/40 border border-border rounded-lg p-3">
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">
+                        Output
+                      </p>
+                      <pre className="text-xs text-foreground font-mono whitespace-pre-wrap">
+                        {output}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={handleRun}
+                      data-ocid="coding.run.button"
+                    >
+                      <Play className="w-3.5 h-3.5 mr-1.5" />
+                      Run
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={handleSubmit}
+                      disabled={submitted}
+                      data-ocid="coding.submit.button"
+                    >
+                      <Send className="w-3.5 h-3.5 mr-1.5" />
+                      {submitted ? "Submitted ✓" : "Submit"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
