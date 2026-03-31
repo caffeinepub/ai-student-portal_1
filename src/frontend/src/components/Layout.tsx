@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  MessageSquare,
   Moon,
   Sun,
   User,
@@ -31,7 +30,6 @@ const navItems = [
   { path: "/coding", label: "Coding", icon: Code2 },
   { path: "/jobs", label: "Jobs", icon: Briefcase },
   { path: "/resume", label: "Resume Builder", icon: FileText },
-  { path: "/chat", label: "AI Chat", icon: MessageSquare },
 ] as const;
 
 function XPBadge() {

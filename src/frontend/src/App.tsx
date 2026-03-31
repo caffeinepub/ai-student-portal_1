@@ -10,7 +10,6 @@ import AuthProvider from "./components/AuthProvider";
 import Layout from "./components/Layout";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { useAuth } from "./hooks/useAuth";
-import ChatAssistant from "./pages/ChatAssistant";
 import CodingPractice from "./pages/CodingPractice";
 import Courses from "./pages/Courses";
 import Dashboard from "./pages/Dashboard";
@@ -80,12 +79,6 @@ const resumeRoute = createRoute({
   component: ResumeBuilder,
 });
 
-const chatRoute = createRoute({
-  getParentRoute: () => layoutRoute,
-  path: "/chat",
-  component: ChatAssistant,
-});
-
 const routeTree = rootRoute.addChildren([
   layoutRoute.addChildren([
     indexRoute,
@@ -94,7 +87,6 @@ const routeTree = rootRoute.addChildren([
     codingRoute,
     jobsRoute,
     resumeRoute,
-    chatRoute,
   ]),
 ]);
 
