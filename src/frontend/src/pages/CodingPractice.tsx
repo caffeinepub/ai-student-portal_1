@@ -170,7 +170,7 @@ export default function CodingPractice() {
                 ? `${selectedProblem.topic} · ${selectedProblem.difficulty}`
                 : selectedCourse
                   ? `${filteredProblems.length} problems · Easy / Medium / Hard`
-                  : `${COURSES.length} courses · 30 problems each`}
+                  : `${COURSES.length} courses · Practice problems`}
             </p>
           </div>
         </div>
