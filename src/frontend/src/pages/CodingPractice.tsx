@@ -1,16 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { COURSES, type Course, type Problem } from "@/data/codingData";
-import {
-  ArrowLeft,
-  BookOpen,
-  CheckCircle2,
-  Code2,
-  Play,
-  Terminal,
-} from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle2, Code2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
@@ -23,40 +15,6 @@ const DIFF_COLORS = {
 };
 
 type Language = "Java" | "Python" | "JavaScript" | "C" | "SQL";
-
-const LANGUAGE_STARTERS: Record<
-  Language,
-  (title: string, topic: string) => string
-> = {
-  Java: (title, topic) =>
-    `// Java - ${title} (${topic})\npublic class Solution {\n    public static void main(String[] args) {\n        // Write your Java solution here\n    }\n}`,
-  Python: (title, topic) =>
-    `# Python - ${title} (${topic})\n\ndef solution():\n    # Write your Python solution here\n    pass\n\nsolution()`,
-  JavaScript: (title, topic) =>
-    `// JavaScript - ${title} (${topic})\n\nfunction solution() {\n    // Write your JavaScript solution here\n}\n\nsolution();`,
-  C: (title, topic) =>
-    `// C - ${title} (${topic})\n#include <stdio.h>\n\nint main() {\n    // Write your C solution here\n    return 0;\n}`,
-  SQL: (title, topic) =>
-    `-- SQL - ${title} (${topic})\n-- Write your SQL query here\nSELECT * FROM table_name;`,
-};
-
-const LANGUAGE_COLORS: Record<Language, string> = {
-  Java: "bg-orange-500/15 text-orange-400 border-orange-500/30 hover:bg-orange-500/25",
-  Python:
-    "bg-blue-500/15 text-blue-400 border-blue-500/30 hover:bg-blue-500/25",
-  JavaScript:
-    "bg-yellow-500/15 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/25",
-  C: "bg-gray-500/15 text-gray-300 border-gray-500/30 hover:bg-gray-500/25",
-  SQL: "bg-green-500/15 text-green-400 border-green-500/30 hover:bg-green-500/25",
-};
-
-const LANGUAGE_ACTIVE: Record<Language, string> = {
-  Java: "bg-orange-500 text-white border-orange-500",
-  Python: "bg-blue-500 text-white border-blue-500",
-  JavaScript: "bg-yellow-500 text-black border-yellow-500",
-  C: "bg-gray-500 text-white border-gray-500",
-  SQL: "bg-green-500 text-white border-green-500",
-};
 
 // Language badge styles for problem cards (smaller, non-interactive)
 const LANG_BADGE: Record<Language, string> = {
@@ -72,48 +30,17 @@ const ALL_LANGUAGES: Language[] = ["Java", "Python", "JavaScript", "C", "SQL"];
 export default function CodingPractice() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
-  const [language, setLanguage] = useState<Language>("Java");
-  const [codeByLang, setCodeByLang] = useState<
-    Partial<Record<Language, string>>
-  >({});
-  const [output, setOutput] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
   const [solved, setSolved] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<"All" | "Easy" | "Medium" | "Hard">(
     "All",
   );
 
-  const currentCode = selectedProblem
-    ? (codeByLang[language] ??
-      LANGUAGE_STARTERS[language](selectedProblem.title, selectedProblem.topic))
-    : "";
-
-  function setCode(val: string) {
-    if (!selectedProblem) return;
-    setCodeByLang((prev) => ({ ...prev, [language]: val }));
-  }
-
-  function switchLanguage(lang: Language) {
-    setLanguage(lang);
-    setOutput("");
-  }
-
   function openProblem(p: Problem) {
     setSelectedProblem(p);
-    setCodeByLang({});
-    setOutput("");
   }
 
-  function runCode() {
-    if (!selectedProblem) return;
-    setIsRunning(true);
-    setTimeout(() => {
-      setOutput(
-        `Running ${selectedProblem.title} in ${language}...\n✓ Your solution has been submitted\n✓ Test cases evaluated\n\nLanguage: ${language}\nNote: This is a simulated environment.\nImplement your solution and test your logic! 🚀`,
-      );
-      setSolved((prev) => new Set([...prev, selectedProblem.id]));
-      setIsRunning(false);
-    }, 1200);
+  function markSolved(p: Problem) {
+    setSolved((prev) => new Set([...prev, p.id]));
   }
 
   const filteredProblems = selectedCourse
@@ -353,7 +280,7 @@ export default function CodingPractice() {
                         onClick={() => openProblem(prob)}
                         data-ocid={`coding.solve.button.${i + 1}`}
                       >
-                        {solved.has(prob.id) ? "Review" : "Solve"}
+                        {solved.has(prob.id) ? "Review" : "View Problem"}
                       </Button>
                     </CardContent>
                   </Card>
@@ -363,17 +290,16 @@ export default function CodingPractice() {
           </motion.div>
         )}
 
-        {/* Code Editor */}
+        {/* Problem Description Only (no code editor) */}
         {selectedProblem && (
           <motion.div
-            key="editor"
+            key="problem-detail"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-4"
+            className="max-w-3xl"
           >
-            {/* Problem Description */}
-            <Card className="h-fit">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-base font-display">
                   Problem Description
@@ -391,100 +317,24 @@ export default function CodingPractice() {
                     {selectedProblem.hint}
                   </p>
                 </div>
+                {!solved.has(selectedProblem.id) && (
+                  <Button
+                    className="w-full"
+                    onClick={() => markSolved(selectedProblem)}
+                    data-ocid="coding.mark-solved.button"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Mark as Solved
+                  </Button>
+                )}
+                {solved.has(selectedProblem.id) && (
+                  <div className="flex items-center gap-2 text-green-400 text-sm font-medium justify-center py-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Problem Solved!
+                  </div>
+                )}
               </CardContent>
             </Card>
-
-            {/* Editor */}
-            <div className="space-y-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <CardTitle className="text-base font-display">
-                      Code Editor
-                    </CardTitle>
-                    <Badge variant="secondary" className="text-xs font-code">
-                      {selectedCourse?.title ?? "Code"}
-                    </Badge>
-                  </div>
-                  {/* Language Tabs */}
-                  <div
-                    className="flex flex-wrap gap-1.5 pt-2"
-                    data-ocid="coding.language.tab"
-                  >
-                    {(
-                      ["Java", "Python", "JavaScript", "C", "SQL"] as Language[]
-                    ).map((lang) => (
-                      <button
-                        type="button"
-                        key={lang}
-                        onClick={() => switchLanguage(lang)}
-                        className={`px-3 py-1 rounded-md text-xs font-semibold border transition-all ${
-                          language === lang
-                            ? LANGUAGE_ACTIVE[lang]
-                            : LANGUAGE_COLORS[lang]
-                        }`}
-                        data-ocid={`coding.lang-${lang.toLowerCase()}.button`}
-                      >
-                        {lang}
-                      </button>
-                    ))}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={currentCode}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="code-editor min-h-64 resize-y bg-muted/50 border-border font-mono text-sm"
-                    spellCheck={false}
-                    data-ocid="coding.editor"
-                  />
-                </CardContent>
-              </Card>
-
-              <Button
-                className="w-full gap-2"
-                onClick={runCode}
-                disabled={isRunning}
-                data-ocid="coding.run.button"
-              >
-                {isRunning ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    Running...
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4" />
-                    Run Code
-                  </>
-                )}
-              </Button>
-
-              {/* Output */}
-              {output && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  data-ocid="coding.output.panel"
-                >
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center gap-2">
-                        <Terminal className="w-4 h-4 text-green-400" />
-                        <CardTitle className="text-sm font-display">
-                          Output
-                        </CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <pre className="code-editor text-sm text-green-400 whitespace-pre-wrap bg-muted/50 rounded-lg p-3">
-                        {output}
-                      </pre>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
