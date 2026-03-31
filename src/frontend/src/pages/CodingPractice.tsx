@@ -13,11 +13,13 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
+  ChevronUp,
   Clock,
   Code2,
   Info,
   Play,
   Send,
+  Sparkles,
   X,
   XCircle,
 } from "lucide-react";
@@ -73,6 +75,295 @@ const STARTER_CODE: Record<Language, string> = {
 type CompileStatus = "success" | "failed" | null;
 type SubmitStatus = "checking" | "all_passed" | "some_failed" | null;
 
+// ─── DJ AI Types ─────────────────────────────────────────────────────────────
+type DJHintContent = {
+  situation: string;
+  pattern: string;
+  progressCheck: string;
+  nextStep: string;
+  nextStepBullets: string[];
+  whyHelps: string;
+};
+
+type DJHistoryEntry = {
+  hintNum: number;
+  content: DJHintContent;
+};
+
+// ─── DJ AI Logic ──────────────────────────────────────────────────────────────
+function analyzeDJCode(
+  code: string,
+  language: Language,
+  problem: Problem,
+): string {
+  const trimmed = code.trim();
+  if (!trimmed || trimmed === STARTER_CODE[language].trim()) {
+    return `You haven't written any code yet. Start by implementing the solution for "${problem.title}".`;
+  }
+  if (language === "Java") {
+    if (!trimmed.includes("class ")) {
+      return "Your Java code is missing a class definition. Add `public class Main { ... }` to wrap your code.";
+    }
+    let braces = 0;
+    for (const ch of trimmed) {
+      if (ch === "{") braces++;
+      if (ch === "}") braces--;
+      if (braces < 0)
+        return "Unmatched braces detected — check your `{` and `}` pairs. You have a `}` without a matching `{`.";
+    }
+    if (braces !== 0)
+      return `Unmatched braces detected 2014 you have ${braces > 0 ? "an unclosed" : "an extra closing"} brace. Check your '{' and '}' pairs.`;
+    let parens = 0;
+    for (const ch of trimmed) {
+      if (ch === "(") parens++;
+      if (ch === ")") parens--;
+      if (parens < 0)
+        return "Unmatched parentheses detected — you have a `)` without a matching `(`.";
+    }
+    if (parens !== 0)
+      return "Unmatched parentheses detected — check your `(` and `)` pairs.";
+    if (!trimmed.includes("System.out.print")) {
+      return "No output statement found — you need `System.out.println(...)` to print your result.";
+    }
+  } else if (language === "Python") {
+    let parens = 0;
+    let brackets = 0;
+    for (const ch of trimmed) {
+      if (ch === "(") parens++;
+      if (ch === ")") parens--;
+      if (ch === "[") brackets++;
+      if (ch === "]") brackets--;
+    }
+    if (parens !== 0)
+      return "Unmatched parentheses in your Python code — check your `(` and `)` pairs.";
+    if (brackets !== 0)
+      return "Unmatched brackets in your Python code — check your `[` and `]` pairs.";
+    if (!trimmed.includes("print")) {
+      return "No output statement found — use `print(...)` to display your result.";
+    }
+  }
+  const desc = problem.description.toLowerCase();
+  const title = problem.title.toLowerCase();
+  if (desc.includes("array") || title.includes("array")) {
+    return "Your code structure looks okay. Double-check your array indexing — are you initializing the array correctly and iterating within bounds?";
+  }
+  if (
+    desc.includes("loop") ||
+    title.includes("loop") ||
+    title.includes("pattern")
+  ) {
+    return "Code scanned. Verify your loop conditions — check the start value, end condition, and increment/decrement logic.";
+  }
+  if (desc.includes("string") || title.includes("string")) {
+    return "Code scanned. Check your string operations — are you using the correct String methods (length, charAt, substring)?";
+  }
+  if (desc.includes("recursion") || title.includes("recursion")) {
+    return "Code scanned. Ensure your recursive function has a valid base case to prevent infinite recursion.";
+  }
+  return "Code scanned. Compare your output logic carefully with the expected output — check data types, spacing, and newlines.";
+}
+
+function generateDJHint(
+  code: string,
+  language: Language,
+  problem: Problem,
+  hintNum: number,
+): DJHintContent {
+  const desc = problem.description.toLowerCase();
+  const title = problem.title.toLowerCase();
+  const trimmed = code.trim();
+  const isEmpty = !trimmed || trimmed === STARTER_CODE[language].trim();
+
+  const isArray = desc.includes("array") || title.includes("array");
+  const isLoop =
+    desc.includes("loop") ||
+    title.includes("loop") ||
+    title.includes("pattern");
+  const isString = desc.includes("string") || title.includes("string");
+  const isRecursion = desc.includes("recursion") || title.includes("recursion");
+  const isOop =
+    desc.includes("class") ||
+    title.includes("object") ||
+    title.includes("encapsulation");
+  const isException = desc.includes("exception") || title.includes("exception");
+  const isThread = desc.includes("thread") || title.includes("thread");
+
+  if (isEmpty) {
+    return {
+      situation: `You haven't started coding yet for "${problem.title}".`,
+      pattern: "No code written — blank or starter-only editor.",
+      progressCheck: "Nothing implemented yet. The structure is ready to fill.",
+      nextStep: "Start by understanding the problem requirements:",
+      nextStepBullets: [
+        "Read the problem description carefully",
+        `Create the basic ${language === "Java" ? "class and main method" : "function"} structure`,
+        "Identify what input is given and what output is expected",
+        "Write a simple first version — even partial progress helps",
+      ],
+      whyHelps:
+        "Starting with small, concrete steps prevents overthinking and builds momentum.",
+    };
+  }
+
+  if (isArray) {
+    const hints: DJHintContent[] = [
+      {
+        situation: "You're working with arrays but the output may not match.",
+        pattern: "Array traversal or initialization issue.",
+        progressCheck: "Code exists but output comparison may be failing.",
+        nextStep: "Check your array setup:",
+        nextStepBullets: [
+          `Declare the array: ${language === "Java" ? "int[] arr = new int[n];" : "arr = []"}`,
+          "Ensure you initialize each element before using it",
+          "Loop from index 0 to arr.length-1 (not inclusive)",
+          "Print/return the correct element or sum",
+        ],
+        whyHelps:
+          "Most array errors come from off-by-one indexing or forgetting to initialize elements.",
+      },
+      {
+        situation: "Array logic is partially implemented.",
+        pattern: "The output format may differ from expected.",
+        progressCheck:
+          "Loop structure present but result may not print correctly.",
+        nextStep: "Verify your output formatting:",
+        nextStepBullets: [
+          "Print each element on a new line or space-separated as required",
+          "Check if you need the sum, average, max, or the array itself",
+          "Use a for-each loop if order doesn't matter",
+        ],
+        whyHelps:
+          "Output format mismatches are the #1 reason for failed test cases.",
+      },
+    ];
+    return hints[(hintNum - 1) % hints.length];
+  }
+
+  if (isLoop || (isString && !isArray)) {
+    return {
+      situation: `Working on "${problem.title}" — a loop/string manipulation problem.`,
+      pattern: `Hint ${hintNum}: loop boundary or string method issue.`,
+      progressCheck:
+        hintNum <= 2
+          ? "Good start — check your iteration logic."
+          : "Almost there — focus on the output format.",
+      nextStep: "Refine your loop or string logic:",
+      nextStepBullets: [
+        isLoop
+          ? "Check start (0 or 1?), end condition (<, <=), and step"
+          : "Use .length(), .charAt(i), .substring(a,b) for strings",
+        "Print inside the loop if outputting multiple lines",
+        "Check for edge cases: empty string, single character, zero",
+        "Compare your printed output manually against expected output",
+      ],
+      whyHelps:
+        "Loop boundary errors account for over 60% of wrong-answer submissions on pattern problems.",
+    };
+  }
+
+  if (isRecursion) {
+    return {
+      situation: `Recursion problem: "${problem.title}".`,
+      pattern: `Hint ${hintNum}: missing base case or wrong recursive call.`,
+      progressCheck:
+        hintNum <= 2
+          ? "Recursive structure started."
+          : "Base case likely present — check the recursive step.",
+      nextStep: "Fix your recursion:",
+      nextStepBullets: [
+        "Define the base case first (e.g., if n == 0 return 1)",
+        "Each recursive call must move closer to the base case",
+        "Don't forget to return the result of the recursive call",
+        "Test with a small input (n=1 or n=2) manually",
+      ],
+      whyHelps:
+        "A clear base case prevents infinite loops and stack overflows in recursive solutions.",
+    };
+  }
+
+  if (isOop) {
+    return {
+      situation: `OOP concept problem: "${problem.title}".`,
+      pattern: `Hint ${hintNum}: class/object structure or access modifier issue.`,
+      progressCheck:
+        hintNum <= 2
+          ? "Class defined — check fields and methods."
+          : "Methods present — verify access modifiers and constructors.",
+      nextStep: "Check your OOP structure:",
+      nextStepBullets: [
+        "Ensure fields are private with public getters/setters for encapsulation",
+        "Constructor should initialize all fields",
+        "Override toString() if output needs object representation",
+        "Create object with `new ClassName(...)` and call methods on it",
+      ],
+      whyHelps:
+        "Proper encapsulation and constructors are the foundation of OOP design in Java.",
+    };
+  }
+
+  if (isException) {
+    return {
+      situation: `Exception handling problem: "${problem.title}".`,
+      pattern: `Hint ${hintNum}: missing try-catch or wrong exception type.`,
+      progressCheck:
+        hintNum <= 2
+          ? "Some structure exists — add exception handling."
+          : "Try-catch present — verify exception types.",
+      nextStep: "Implement proper exception handling:",
+      nextStepBullets: [
+        "Wrap risky code in try { ... } catch (ExceptionType e) { ... }",
+        "Use specific exception types (ArithmeticException, NullPointerException)",
+        "Print the error message in catch: System.out.println(e.getMessage())",
+        "Add finally block for cleanup code if required",
+      ],
+      whyHelps:
+        "Specific exception types give clearer error messages and better program control.",
+    };
+  }
+
+  if (isThread) {
+    return {
+      situation: `Multithreading problem: "${problem.title}".`,
+      pattern: `Hint ${hintNum}: thread creation or synchronization issue.`,
+      progressCheck:
+        hintNum <= 2
+          ? "Thread class defined — check run() method."
+          : "run() present — check thread start and join.",
+      nextStep: "Fix your thread logic:",
+      nextStepBullets: [
+        "Extend Thread or implement Runnable interface",
+        "Override run() method with your thread logic",
+        "Start with thread.start() — not thread.run()",
+        "Use thread.join() if you need to wait for completion",
+      ],
+      whyHelps:
+        "Calling start() instead of run() is critical — run() executes on the current thread, not a new one.",
+    };
+  }
+
+  // Generic fallback
+  return {
+    situation: `Analyzing "${problem.title}" — Hint ${hintNum} of 5.`,
+    pattern: "Output mismatch or logic gap detected.",
+    progressCheck:
+      hintNum <= 2
+        ? "You've made progress — identify the output format."
+        : hintNum <= 4
+          ? "Getting closer — focus on edge cases."
+          : "Final hint — compare output character by character.",
+    nextStep: "Review these common issues:",
+    nextStepBullets: [
+      "Check output format: extra spaces, missing newlines?",
+      `Verify ${language === "Java" ? "System.out.println vs System.out.print" : "print vs print with end parameter"}`,
+      "Trace through your code with the sample input manually",
+      "Make sure variable names and types match what's expected",
+    ],
+    whyHelps:
+      "Manual tracing with sample input catches most logic errors before running.",
+  };
+}
+
+// ─── Compilation helpers (unchanged) ─────────────────────────────────────────
 function checkCompilation(language: Language, code: string): CompileStatus {
   const trimmed = code.trim();
   if (
@@ -149,9 +440,7 @@ function simulateOutput(code: string, language: Language): string {
         outputs.push(m4[1]);
         continue;
       }
-      if (/System\.out\.println\(\)/.test(trimLine)) {
-        outputs.push("");
-      }
+      if (/System\.out\.println\(\)/.test(trimLine)) outputs.push("");
     }
   } else if (language === "Python") {
     for (const line of lines) {
@@ -176,14 +465,11 @@ function simulateOutput(code: string, language: Language): string {
         outputs.push(m4[1]);
         continue;
       }
-      if (/^print\(\)$/.test(trimLine)) {
-        outputs.push("");
-      }
+      if (/^print\(\)$/.test(trimLine)) outputs.push("");
     }
   }
 
-  if (outputs.length === 0) return "";
-  return outputs.join("\n");
+  return outputs.length === 0 ? "" : outputs.join("\n");
 }
 
 async function runTestCases(problem: Problem): Promise<TestResult[]> {
@@ -196,6 +482,300 @@ async function runTestCases(problem: Problem): Promise<TestResult[]> {
   }));
 }
 
+// ─── DJ Panel Component ───────────────────────────────────────────────────────
+function DJPanel({
+  code,
+  language,
+  problem,
+  onClose,
+}: {
+  code: string;
+  language: Language;
+  problem: Problem;
+  onClose: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"chat" | "hint">("chat");
+  const [hints, setHints] = useState<DJHintContent[]>([]);
+  const [history, setHistory] = useState<DJHistoryEntry[]>([]);
+  const [showOffer, setShowOffer] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
+  const MAX_HINTS = 5;
+  const hintsUsed = hints.length;
+  const locked = hintsUsed >= MAX_HINTS;
+
+  function requestHint() {
+    if (locked) return;
+    const hintNum = hintsUsed + 1;
+    const content = generateDJHint(code, language, problem, hintNum);
+    const entry: DJHistoryEntry = { hintNum, content };
+    setHistory((prev) => [...prev, entry]);
+    setHints((prev) => [...prev, content]);
+    setActiveTab("hint");
+    setShowOffer(false);
+  }
+
+  function handleAccept() {
+    requestHint();
+  }
+
+  function handleReject() {
+    setShowOffer(false);
+  }
+
+  const currentHint = hints[hints.length - 1] ?? null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 12 }}
+      className="rounded-xl border border-indigo-500/30 bg-gray-950 shadow-lg shadow-indigo-950/30 overflow-hidden"
+      data-ocid="dj.panel"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-indigo-400" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-white font-bold text-sm tracking-wide">
+                DJ
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+            </div>
+            <span className="text-xs text-gray-500">AI Assistant</span>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-gray-500 hover:text-white"
+          onClick={onClose}
+          data-ocid="dj.close_button"
+        >
+          <X className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-800">
+        <button
+          type="button"
+          onClick={() => setActiveTab("chat")}
+          className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+            activeTab === "chat"
+              ? "text-white border-b-2 border-indigo-400"
+              : "text-gray-600 hover:text-gray-400"
+          }`}
+          data-ocid="dj.tab"
+        >
+          Chat
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab("hint");
+            if (!currentHint && !locked) requestHint();
+          }}
+          className={`flex-1 py-2.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+            activeTab === "hint"
+              ? "text-white border-b-2 border-indigo-400"
+              : "text-gray-600 hover:text-gray-400"
+          }`}
+          data-ocid="dj.tab"
+        >
+          Hint
+          {hintsUsed > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-300 text-[10px] font-bold">
+              {hintsUsed}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-4 space-y-3">
+        {activeTab === "chat" && (
+          <div className="space-y-3">
+            {/* Code analysis */}
+            <div className="rounded-lg bg-gray-900 border border-gray-800 p-3">
+              <p className="text-xs text-gray-400 mb-1 font-semibold">
+                🔍 Code Analysis
+              </p>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                {analyzeDJCode(code, language, problem)}
+              </p>
+            </div>
+
+            {/* Offer card */}
+            {showOffer && !locked && (
+              <div className="rounded-lg bg-gray-900 border border-gray-700 p-3 space-y-3">
+                <p className="text-xs text-white leading-relaxed">
+                  This has been a tough streak — want some targeted help to
+                  unblock you?
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs h-7"
+                    onClick={handleAccept}
+                    data-ocid="dj.confirm_button"
+                  >
+                    ✓ Accept
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800 text-xs h-7"
+                    onClick={handleReject}
+                    data-ocid="dj.cancel_button"
+                  >
+                    ✗ Reject
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {locked && (
+              <div className="rounded-lg bg-gray-900 border border-gray-700 p-3 text-center">
+                <p className="text-xs text-gray-400">
+                  Locked 🔒 — Try solving it yourself!
+                </p>
+              </div>
+            )}
+
+            {!showOffer && !locked && (
+              <Button
+                size="sm"
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-7"
+                onClick={requestHint}
+                data-ocid="dj.primary_button"
+              >
+                Get Hint ({MAX_HINTS - hintsUsed} remaining)
+              </Button>
+            )}
+          </div>
+        )}
+
+        {activeTab === "hint" && (
+          <div className="space-y-3">
+            {locked && !currentHint && (
+              <div className="rounded-lg bg-gray-900 border border-gray-700 p-3 text-center">
+                <p className="text-xs text-gray-400">
+                  Locked 🔒 — Try solving it yourself!
+                </p>
+              </div>
+            )}
+
+            {currentHint && (
+              <div className="rounded-lg bg-gray-900 border border-gray-800 p-4 space-y-3 text-xs">
+                <div>
+                  <span className="font-bold text-white">Situation: </span>
+                  <span className="text-gray-300">{currentHint.situation}</span>
+                </div>
+                <div>
+                  <span className="font-bold text-white">
+                    Pattern I&apos;m noticing:{" "}
+                  </span>
+                  <span className="text-gray-300">{currentHint.pattern}</span>
+                </div>
+                <div>
+                  <span className="font-bold text-white">Progress check: </span>
+                  <span className="text-gray-300">
+                    {currentHint.progressCheck}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-bold text-white mb-1.5">
+                    ⟳ Exact next step: {currentHint.nextStep}
+                  </p>
+                  <ul className="space-y-1 pl-1">
+                    {currentHint.nextStepBullets.map((b) => (
+                      <li
+                        key={b}
+                        className="flex items-start gap-1.5 text-gray-300"
+                      >
+                        <span className="text-indigo-400 mt-0.5">•</span>
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <span className="font-bold text-white">Why this helps: </span>
+                  <span className="text-gray-300">{currentHint.whyHelps}</span>
+                </div>
+                <p className="text-gray-600 italic">
+                  If you want, I can show a small example snippet to illustrate
+                  this step...
+                </p>
+              </div>
+            )}
+
+            {!locked && (
+              <Button
+                size="sm"
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-7"
+                onClick={requestHint}
+                data-ocid="dj.primary_button"
+              >
+                Next Hint ({MAX_HINTS - hintsUsed} remaining)
+              </Button>
+            )}
+
+            {/* History */}
+            {history.length > 0 && (
+              <div className="border-t border-gray-800 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowHistory((v) => !v)}
+                  className="flex items-center gap-2 text-[10px] text-gray-500 hover:text-gray-400 font-semibold tracking-widest uppercase w-full"
+                  data-ocid="dj.toggle"
+                >
+                  <span className="text-gray-600">⊙</span>
+                  <span>History [{history.length}]</span>
+                  <ChevronUp
+                    className={`w-3 h-3 ml-auto transition-transform ${
+                      showHistory ? "" : "rotate-180"
+                    }`}
+                  />
+                </button>
+                <AnimatePresence>
+                  {showHistory && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden mt-2 space-y-2"
+                    >
+                      {history.map((entry) => (
+                        <div
+                          key={entry.hintNum}
+                          className="rounded-lg bg-gray-900/60 border border-gray-800 p-3 text-xs"
+                        >
+                          <p className="text-indigo-400 font-bold mb-1">
+                            Hint {entry.hintNum}
+                          </p>
+                          <p className="text-gray-400">
+                            {entry.content.situation}
+                          </p>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function CodingPractice() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
@@ -218,6 +798,10 @@ export default function CodingPractice() {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(null);
   const [_testResults, setTestResults] = useState<TestResult[]>([]);
 
+  // DJ state
+  const [djOpen, setDjOpen] = useState(false);
+  const [djKey, setDjKey] = useState(0); // increment to reset DJ panel
+
   const allPassed = submitStatus === "all_passed";
 
   function resetProblemState() {
@@ -234,6 +818,9 @@ export default function CodingPractice() {
     setSelectedProblem(p);
     setProblemIndex(index);
     resetProblemState();
+    // Reset DJ
+    setDjOpen(false);
+    setDjKey((k) => k + 1);
     const lang: Language =
       selectedCourse?.language === "Python" ? "Python" : "Java";
     setActiveLanguage(lang);
@@ -288,9 +875,7 @@ export default function CodingPractice() {
     setSubmitStatus(passed ? "all_passed" : "some_failed");
     setIsSubmitting(false);
 
-    if (passed) {
-      setSolved((prev) => new Set([...prev, selectedProblem.id]));
-    }
+    if (passed) setSolved((prev) => new Set([...prev, selectedProblem.id]));
   }
 
   function handleNextQuestion() {
@@ -343,6 +928,7 @@ export default function CodingPractice() {
               if (selectedProblem) {
                 setSelectedProblem(null);
                 resetProblemState();
+                setDjOpen(false);
               } else {
                 setSelectedCourse(null);
                 setFilter("All");
@@ -557,6 +1143,8 @@ export default function CodingPractice() {
                 all test cases. &nbsp;
                 <strong>Step 4:</strong> Pass all 3 test cases to unlock next
                 question. &nbsp;
+                <strong>Stuck?</strong> Click <strong>Ask DJ 🤖</strong> for AI
+                hints.
               </span>
             </div>
 
@@ -592,6 +1180,21 @@ export default function CodingPractice() {
                     <CardTitle className="text-base font-display">
                       Code Editor
                     </CardTitle>
+                    {/* Ask DJ button */}
+                    <Button
+                      size="sm"
+                      variant={djOpen ? "default" : "outline"}
+                      className={`text-xs h-7 gap-1.5 ${
+                        djOpen
+                          ? "bg-indigo-600 hover:bg-indigo-500 border-indigo-600 text-white"
+                          : "border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-400"
+                      }`}
+                      onClick={() => setDjOpen((v) => !v)}
+                      data-ocid="dj.open_modal_button"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Ask DJ 🤖
+                    </Button>
                   </div>
 
                   {/* Language tab */}
@@ -762,7 +1365,6 @@ export default function CodingPractice() {
 
                   {submitStatus === "some_failed" && (
                     <motion.div
-                      key="submit-error"
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
@@ -833,6 +1435,19 @@ export default function CodingPractice() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* DJ AI Panel */}
+            <AnimatePresence>
+              {djOpen && selectedProblem && (
+                <DJPanel
+                  key={djKey}
+                  code={codeByLanguage[activeLanguage]}
+                  language={activeLanguage}
+                  problem={selectedProblem}
+                  onClose={() => setDjOpen(false)}
+                />
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
