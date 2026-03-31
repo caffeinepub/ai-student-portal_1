@@ -17,7 +17,8 @@ export default {
     extend: {
       fontFamily: {
         display: ['"Bricolage Grotesque"', 'sans-serif'],
-        body: ['"Outfit"', 'sans-serif'],
+        body: ['"Plus Jakarta Sans"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
         code: ['"JetBrains Mono"', 'monospace'],
       },
       colors: {
@@ -79,6 +80,7 @@ export default {
       },
       boxShadow: {
         xs: "0 1px 2px 0 rgba(0,0,0,0.05)",
+        portal: "0 4px 24px oklch(0.50 0.22 260 / 0.15)",
       },
       keyframes: {
         "accordion-down": {
@@ -89,10 +91,15 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 4px 1px oklch(0.50 0.22 260 / 0.4)" },
+          "50%": { boxShadow: "0 0 10px 3px oklch(0.50 0.22 260 / 0.7)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow": "pulse-glow 3s ease-in-out infinite",
       },
     },
   },

@@ -93,17 +93,17 @@ export default function Layout() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <GraduationCap className="w-5 h-5 text-primary-foreground" />
+        {/* Logo / Branding */}
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
+          <div className="logo-badge w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0">
+            <GraduationCap className="w-6 h-6 text-white" />
           </div>
-          <div>
-            <h1 className="font-display font-bold text-sm text-sidebar-foreground leading-tight">
-              AI Student Portal
+          <div className="flex-1 min-w-0">
+            <h1 className="font-display font-bold text-base text-gradient leading-tight truncate">
+              Student Portal
             </h1>
-            <p className="text-xs text-sidebar-foreground/50">
-              Learn · Practice · Grow
+            <p className="text-[10px] text-sidebar-foreground/50 font-medium tracking-wide">
+              Learn · Build · Achieve
             </p>
           </div>
           <Button
@@ -127,16 +127,20 @@ export default function Layout() {
                 to={path}
                 data-ocid={`nav.${label.toLowerCase().replace(/\s+/g, "-")}.link`}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all sidebar-glow-item ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 sidebar-glow-item ${
                   isActive
-                    ? "bg-sidebar-primary/20 text-sidebar-primary border border-sidebar-primary/30"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    ? "bg-primary/10 text-primary border-l-[3px] border-primary pl-[calc(0.75rem-3px)] font-semibold"
+                    : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 }`}
               >
-                <Icon className="w-4 h-4 flex-shrink-0" />
+                <Icon
+                  className={`w-4 h-4 flex-shrink-0 ${
+                    isActive ? "text-primary" : "text-sidebar-foreground/50"
+                  }`}
+                />
                 {label}
                 {isActive && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-sidebar-primary" />
+                  <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
                 )}
               </Link>
             );
@@ -147,19 +151,23 @@ export default function Layout() {
         <div className="px-3 py-4 border-t border-sidebar-border space-y-2">
           {user && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 px-1">
-                <User className="w-3.5 h-3.5 text-sidebar-foreground/50 flex-shrink-0" />
-                <p className="text-xs text-sidebar-foreground/70 truncate font-medium">
-                  {user.name}
-                </p>
+              <div className="flex items-center gap-2 px-2 py-2 rounded-lg bg-sidebar-accent">
+                <div className="w-7 h-7 rounded-full logo-badge flex items-center justify-center flex-shrink-0">
+                  <User className="w-3.5 h-3.5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-sidebar-foreground font-semibold truncate">
+                    {user.name}
+                  </p>
+                  <p className="text-[10px] text-sidebar-foreground/40 truncate">
+                    {user.email}
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-sidebar-foreground/40 px-1 truncate">
-                {user.email}
-              </p>
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                className="w-full justify-start text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors duration-200"
                 onClick={() => logout()}
                 data-ocid="nav.logout.button"
               >
@@ -185,10 +193,23 @@ export default function Layout() {
             <Menu className="w-5 h-5" />
           </Button>
 
+          {/* Mobile: show portal title */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <div className="logo-badge w-6 h-6 rounded-md flex items-center justify-center">
+              <GraduationCap className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="font-display font-bold text-sm text-gradient">
+              Student Portal
+            </span>
+          </div>
+
           <div className="hidden lg:block">
-            <h2 className="font-display font-semibold text-foreground text-sm">
-              AI Student Portal
+            <h2 className="font-display font-bold text-foreground text-sm">
+              Student Portal
             </h2>
+            <p className="text-[10px] text-muted-foreground">
+              Learn · Build · Achieve
+            </p>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -210,9 +231,9 @@ export default function Layout() {
 
             {user && (
               <div className="hidden sm:flex items-center gap-2">
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted">
-                  <User className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium text-foreground max-w-[120px] truncate">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/8 border border-primary/15">
+                  <User className="w-3 h-3 text-primary" />
+                  <span className="text-xs font-semibold text-foreground max-w-[120px] truncate">
                     {user.name}
                   </span>
                 </div>
@@ -220,9 +241,10 @@ export default function Layout() {
                   size="sm"
                   variant="outline"
                   onClick={() => logout()}
+                  className="text-xs hover:text-destructive hover:border-destructive/50 transition-colors"
                   data-ocid="header.logout.button"
                 >
-                  <LogOut className="w-3.5 h-3.5 mr-1.5" />
+                  <LogOut className="w-3 h-3 mr-1.5" />
                   Sign Out
                 </Button>
               </div>

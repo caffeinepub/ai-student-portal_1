@@ -128,7 +128,7 @@ const FALLBACK_COURSES: Course[] = [
       "Programming Full Course — core programming concepts, logic building, and practical coding skills for beginners and beyond.",
     category: "Programming",
     youtube_url:
-      "https://www.youtube.com/watch?v=VHbSopMyc4M&list=PLBlnK6fEyqRjKA_NuK9mHmlk0dZzuP1P5",
+      "https://www.youtube.com/watch?v=V0_OndQik8s&list=PLF9tovyahfL020hGgLIsRMZY4bfSLCFUa",
     thumbnail_url: "",
     difficulty: DifficultyLevel.beginner,
   },

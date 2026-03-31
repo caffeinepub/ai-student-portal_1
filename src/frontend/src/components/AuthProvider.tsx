@@ -1,8 +1,4 @@
 import { type PropsWithChildren, useCallback, useMemo, useState } from "react";
-import {
-  Variant_ok_emailTaken_invalidInput,
-  Variant_ok_notFound_rateLimited_wrongAnswer,
-} from "../backend.d";
 import { useActor } from "../hooks/useActor";
 import {
   AuthContext,
@@ -13,6 +9,11 @@ import {
   setSession,
 } from "../hooks/useAuth";
 import { hashPassword } from "../utils/hashUtils";
+
+// Motoko variants come back as objects: { ok: null }, { emailTaken: null }, etc.
+function hasKey<T extends object>(obj: T, key: string): boolean {
+  return typeof obj === "object" && obj !== null && key in obj;
+}
 
 export default function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(() => getSession());
@@ -53,7 +54,9 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           securityQuestion.trim(),
           securityAnswerHash,
         );
-        if (result === Variant_ok_emailTaken_invalidInput.ok) {
+        // Motoko returns variant objects like { ok: null }, { emailTaken: null }
+        const resultObj = result as unknown as object;
+        if (hasKey(resultObj, "ok")) {
           const authUser: AuthUser = {
             name: name.trim(),
             email: email.trim().toLowerCase(),
@@ -62,7 +65,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           setUser(authUser);
           return { success: true };
         }
-        if (result === Variant_ok_emailTaken_invalidInput.emailTaken) {
+        if (hasKey(resultObj, "emailTaken")) {
           return {
             success: false,
             error: "An account with this email already exists.",
@@ -100,8 +103,14 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           email.trim().toLowerCase(),
           passwordHash,
         );
-        if (result) {
-          const authUser: AuthUser = { name: result.name, email: result.email };
+        // loginStudent returns ?StudentAccount — Some(account) or null
+        // ICP JS agent returns [] for null and [account] for Some
+        const account = Array.isArray(result) ? result[0] : result;
+        if (account?.name && account?.email) {
+          const authUser: AuthUser = {
+            name: account.name,
+            email: account.email,
+          };
           setSession(authUser);
           setUser(authUser);
           return { success: true };
@@ -136,23 +145,20 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           securityAnswerHash,
           newPasswordHash,
         );
-        if (result === Variant_ok_notFound_rateLimited_wrongAnswer.ok) {
+        const resultObj = result as unknown as object;
+        if (hasKey(resultObj, "ok")) {
           return { success: true };
         }
-        if (result === Variant_ok_notFound_rateLimited_wrongAnswer.notFound) {
+        if (hasKey(resultObj, "notFound")) {
           return {
             success: false,
             error: "No account found with this email.",
           };
         }
-        if (
-          result === Variant_ok_notFound_rateLimited_wrongAnswer.wrongAnswer
-        ) {
+        if (hasKey(resultObj, "wrongAnswer")) {
           return { success: false, error: "Incorrect security answer." };
         }
-        if (
-          result === Variant_ok_notFound_rateLimited_wrongAnswer.rateLimited
-        ) {
+        if (hasKey(resultObj, "rateLimited")) {
           return {
             success: false,
             error: "Too many attempts. Please try again later.",
