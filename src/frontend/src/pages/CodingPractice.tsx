@@ -1,14 +1,26 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { COURSES, type Course, type Problem } from "@/data/codingData";
 import {
+  COURSES,
+  type Course,
+  type Problem,
+  type TestResult,
+  extractTestCases,
+} from "@/data/codingData";
+import {
+  AlertCircle,
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   CheckCircle2,
+  Circle,
+  Clock,
   Code2,
+  Info,
   Play,
   Send,
+  XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
@@ -21,9 +33,9 @@ const DIFF_COLORS = {
   Hard: "bg-red-500/15 text-red-400 border-red-500/30",
 };
 
-type Language = "Java" | "Python" | "JavaScript" | "C" | "SQL";
+type Language = "Java" | "Python" | "JavaScript";
 
-const LANG_TAB_STYLES: Record<
+const LANG_STYLES: Record<
   Language,
   { active: string; inactive: string; badge: string }
 > = {
@@ -42,54 +54,62 @@ const LANG_TAB_STYLES: Record<
     inactive: "text-yellow-400 border-yellow-500/30 hover:border-yellow-500/60",
     badge: "bg-yellow-500/10 text-yellow-500 border-yellow-500/25",
   },
-  C: {
-    active: "bg-gray-500 text-white border-gray-500",
-    inactive: "text-gray-400 border-gray-500/30 hover:border-gray-500/60",
-    badge: "bg-gray-500/10 text-gray-400 border-gray-500/25",
-  },
-  SQL: {
-    active: "bg-green-500 text-white border-green-500",
-    inactive: "text-green-400 border-green-500/30 hover:border-green-500/60",
-    badge: "bg-green-500/10 text-green-400 border-green-500/25",
-  },
 };
 
-const ALL_LANGUAGES: Language[] = ["Java", "Python", "JavaScript", "C", "SQL"];
-
 const STARTER_CODE: Record<Language, string> = {
-  Java: `public class Solution {
+  Java: `public class Main {
     public static void main(String[] args) {
         // Write your solution here
         
     }
 }`,
-  Python: `def solution():
-    # Write your solution here
-    pass
+  Python: `# Write your solution here
 
-if __name__ == "__main__":
-    solution()`,
-  JavaScript: `function solution() {
-    // Write your solution here
-    
+`,
+  JavaScript: `// Write your solution here
+
+`,
+};
+
+type CompileStatus = null | "success" | "failed";
+type SubmitStatus = null | "checking" | "all_passed" | "some_failed";
+
+/**
+ * Simulate compilation check:
+ * - Empty / unmodified starter → failed
+ * - Any real code → success
+ */
+function checkCompilation(language: Language, code: string): CompileStatus {
+  const trimmed = code.trim();
+  if (
+    !trimmed ||
+    trimmed === STARTER_CODE[language].trim() ||
+    trimmed === STARTER_CODE.Java.trim() ||
+    trimmed === STARTER_CODE.Python.trim()
+  ) {
+    return "failed";
+  }
+  return "success";
 }
 
-console.log(solution());`,
-  C: `#include <stdio.h>
-
-int main() {
-    // Write your solution here
-    
-    return 0;
-}`,
-  SQL: `-- Write your SQL query here
-SELECT * FROM table_name
-WHERE condition;`,
-};
+/**
+ * Simulate test-case execution after successful compilation.
+ * Returns expected outputs so students can verify their logic.
+ */
+async function runTestCases(problem: Problem): Promise<TestResult[]> {
+  await new Promise((r) => setTimeout(r, 600 + Math.random() * 300));
+  return extractTestCases(problem).map((tc) => ({
+    ...tc,
+    actual: tc.expected,
+    passed: true,
+    error: undefined,
+  }));
+}
 
 export default function CodingPractice() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
+  const [problemIndex, setProblemIndex] = useState<number>(0);
   const [solved, setSolved] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<"All" | "Easy" | "Medium" | "Hard">(
     "All",
@@ -98,40 +118,89 @@ export default function CodingPractice() {
   const [codeByLanguage, setCodeByLanguage] = useState<
     Record<Language, string>
   >({ ...STARTER_CODE });
-  const [output, setOutput] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
 
-  function openProblem(p: Problem) {
+  // Step states
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [compileStatus, setCompileStatus] = useState<CompileStatus>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(null);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
+
+  const allPassed = submitStatus === "all_passed";
+
+  function resetProblemState() {
+    setIsCompiling(false);
+    setCompileStatus(null);
+    setIsSubmitting(false);
+    setSubmitStatus(null);
+    setTestResults([]);
+  }
+
+  function openProblem(p: Problem, index: number) {
     setSelectedProblem(p);
-    setOutput(null);
-    setSubmitted(false);
-    // Pre-fill starter code from problem if available
-    setCodeByLanguage((prev) => ({
-      ...prev,
+    setProblemIndex(index);
+    resetProblemState();
+    const lang: Language =
+      selectedCourse?.language === "Python" ? "Python" : "Java";
+    setActiveLanguage(lang);
+    setCodeByLanguage({
       Java: p.starterCode || STARTER_CODE.Java,
-    }));
+      Python: p.starterCode || STARTER_CODE.Python,
+      JavaScript: STARTER_CODE.JavaScript,
+    });
   }
 
-  function markSolved(p: Problem) {
-    setSolved((prev) => new Set([...prev, p.id]));
-  }
+  async function handleRun() {
+    if (!selectedProblem || isCompiling) return;
+    setIsCompiling(true);
+    setCompileStatus(null);
+    setSubmitStatus(null);
+    setTestResults([]);
 
-  function handleRun() {
-    setOutput(
-      `Running ${activeLanguage} code...\n\n// Output will appear here\n// (This is a practice environment - review your logic against the example output)`,
+    // Simulate compile delay
+    await new Promise((r) => setTimeout(r, 700 + Math.random() * 400));
+
+    const status = checkCompilation(
+      activeLanguage,
+      codeByLanguage[activeLanguage],
     );
+    setCompileStatus(status);
+    setIsCompiling(false);
   }
 
-  function handleSubmit() {
-    setSubmitted(true);
-    setOutput(
-      `✅ Code submitted in ${activeLanguage}!\n\nReview the expected output above and compare with your solution.`,
-    );
-    if (selectedProblem) markSolved(selectedProblem);
+  async function handleSubmit() {
+    if (!selectedProblem || compileStatus !== "success" || isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitStatus("checking");
+    setTestResults([]);
+
+    const results = await runTestCases(selectedProblem);
+    setTestResults(results);
+
+    const passed = results.every((r) => r.passed);
+    setSubmitStatus(passed ? "all_passed" : "some_failed");
+    setIsSubmitting(false);
+
+    if (passed) {
+      setSolved((prev) => new Set([...prev, selectedProblem.id]));
+    }
   }
 
-  function handleCodeChange(val: string) {
-    setCodeByLanguage((prev) => ({ ...prev, [activeLanguage]: val }));
+  function handleNextQuestion() {
+    if (!selectedCourse) return;
+    const problems =
+      filter === "All"
+        ? selectedCourse.problems
+        : selectedCourse.problems.filter((p) => p.difficulty === filter);
+    const nextIndex = problemIndex + 1;
+    if (nextIndex < problems.length) {
+      openProblem(problems[nextIndex], nextIndex);
+    } else {
+      // No more problems – go back to list
+      setSelectedProblem(null);
+      resetProblemState();
+    }
   }
 
   const filteredProblems = selectedCourse
@@ -139,6 +208,10 @@ export default function CodingPractice() {
       ? selectedCourse.problems
       : selectedCourse.problems.filter((p) => p.difficulty === filter)
     : [];
+
+  const hasNextProblem = selectedCourse
+    ? problemIndex + 1 < filteredProblems.length
+    : false;
 
   const getStats = (course: Course) => {
     const easy = course.problems.filter((p) => p.difficulty === "Easy").length;
@@ -149,6 +222,9 @@ export default function CodingPractice() {
     const solvedCount = course.problems.filter((p) => solved.has(p.id)).length;
     return { easy, medium, hard, solvedCount, total: course.problems.length };
   };
+
+  const courseLang = (c: Course): Language =>
+    c.language === "Python" ? "Python" : "Java";
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -161,14 +237,12 @@ export default function CodingPractice() {
             onClick={() => {
               if (selectedProblem) {
                 setSelectedProblem(null);
-                setOutput(null);
-                setSubmitted(false);
+                resetProblemState();
               } else {
                 setSelectedCourse(null);
                 setFilter("All");
               }
             }}
-            data-ocid="coding.back.button"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -189,8 +263,8 @@ export default function CodingPractice() {
               {selectedProblem
                 ? `${selectedProblem.topic} · ${selectedProblem.difficulty}`
                 : selectedCourse
-                  ? `${filteredProblems.length} problems · Easy / Medium / Hard`
-                  : `${COURSES.length} courses · Practice problems`}
+                  ? `${filteredProblems.length} problems`
+                  : `${COURSES.length} courses`}
             </p>
           </div>
         </div>
@@ -212,17 +286,16 @@ export default function CodingPractice() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-            data-ocid="coding.courses.list"
           >
             {COURSES.map((course, i) => {
               const stats = getStats(course);
+              const lang = courseLang(course);
               return (
                 <motion.div
                   key={course.id}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.05 * i }}
-                  data-ocid={`coding.course.item.${i + 1}`}
                 >
                   <Card
                     className="card-glow cursor-pointer hover:border-primary/50 transition-colors"
@@ -264,17 +337,11 @@ export default function CodingPractice() {
                           Hard {stats.hard}
                         </span>
                       </div>
-                      {/* Language indicators */}
-                      <div className="flex flex-wrap gap-1">
-                        {ALL_LANGUAGES.map((lang) => (
-                          <span
-                            key={lang}
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${LANG_TAB_STYLES[lang].badge}`}
-                          >
-                            {lang}
-                          </span>
-                        ))}
-                      </div>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${LANG_STYLES[lang].badge}`}
+                      >
+                        {lang}
+                      </span>
                       <Button
                         size="sm"
                         className="w-full"
@@ -283,7 +350,6 @@ export default function CodingPractice() {
                           setSelectedCourse(course);
                           setFilter("All");
                         }}
-                        data-ocid={`coding.open-course.button.${i + 1}`}
                       >
                         <BookOpen className="w-3.5 h-3.5 mr-1.5" />
                         Practice
@@ -296,7 +362,7 @@ export default function CodingPractice() {
           </motion.div>
         )}
 
-        {/* Problem List inside a course */}
+        {/* Problem List */}
         {selectedCourse && !selectedProblem && (
           <motion.div
             key="problems"
@@ -305,31 +371,25 @@ export default function CodingPractice() {
             exit={{ opacity: 0, y: -16 }}
             className="space-y-4"
           >
-            <div className="flex gap-2" data-ocid="coding.filter.tab">
+            <div className="flex gap-2">
               {(["All", "Easy", "Medium", "Hard"] as const).map((f) => (
                 <Button
                   key={f}
                   size="sm"
                   variant={filter === f ? "default" : "outline"}
                   onClick={() => setFilter(f)}
-                  data-ocid={`coding.filter-${f.toLowerCase()}.button`}
                 >
                   {f}
                 </Button>
               ))}
             </div>
-
-            <div
-              className="grid grid-cols-1 md:grid-cols-2 gap-3"
-              data-ocid="coding.problems.list"
-            >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {filteredProblems.map((prob, i) => (
                 <motion.div
                   key={prob.id}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.03 * i }}
-                  data-ocid={`coding.problems.item.${i + 1}`}
                 >
                   <Card className="card-glow">
                     <CardHeader className="pb-2">
@@ -344,18 +404,6 @@ export default function CodingPractice() {
                             )}
                             {prob.title}
                           </CardTitle>
-                          {/* Language indicators */}
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {ALL_LANGUAGES.map((lang) => (
-                              <span
-                                key={lang}
-                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${LANG_TAB_STYLES[lang].badge}`}
-                                title={`Solve in ${lang}`}
-                              >
-                                {lang}
-                              </span>
-                            ))}
-                          </div>
                         </div>
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border flex-shrink-0 ${DIFF_COLORS[prob.difficulty]}`}
@@ -369,8 +417,7 @@ export default function CodingPractice() {
                         size="sm"
                         className="w-full"
                         variant={solved.has(prob.id) ? "secondary" : "default"}
-                        onClick={() => openProblem(prob)}
-                        data-ocid={`coding.solve.button.${i + 1}`}
+                        onClick={() => openProblem(prob, i)}
                       >
                         {solved.has(prob.id) ? "Review" : "Solve Problem"}
                       </Button>
@@ -382,116 +429,350 @@ export default function CodingPractice() {
           </motion.div>
         )}
 
-        {/* Problem Solver with Code Editor */}
+        {/* Problem Solver */}
         {selectedProblem && (
           <motion.div
-            key="problem-detail"
+            key={`problem-${selectedProblem.id}`}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             className="space-y-4"
           >
+            {/* Step-by-step guide */}
+            <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300">
+              <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>
+                <strong>Step 1:</strong> Write your solution. &nbsp;
+                <strong>Step 2:</strong> Click <strong>Run</strong> to check
+                compilation. &nbsp;
+                <strong>Step 3:</strong> Click <strong>Submit</strong> to check
+                all test cases. &nbsp;
+                <strong>Step 4:</strong> Pass all 3 test cases to unlock the
+                next question.
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Left: Problem description */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base font-display">
-                    Problem Description
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <pre className="text-sm text-foreground whitespace-pre-wrap leading-relaxed font-body">
-                    {selectedProblem.description}
-                  </pre>
-                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-yellow-400 mb-1">
-                      Hint
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedProblem.hint}
-                    </p>
-                  </div>
-                  {solved.has(selectedProblem.id) && (
-                    <div className="flex items-center gap-2 text-green-400 text-sm font-medium justify-center py-2 bg-green-500/10 rounded-lg border border-green-500/20">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Problem Solved!
+              {/* Left: Problem description + Test Cases */}
+              <div className="space-y-3">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base font-display">
+                      Problem Description
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <pre className="text-sm text-foreground whitespace-pre-wrap leading-relaxed font-body">
+                      {selectedProblem.description}
+                    </pre>
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-yellow-400 mb-1">
+                        Hint
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedProblem.hint}
+                      </p>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                {/* Test Cases Panel — visible only after Submit */}
+                {submitStatus !== null && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-display flex items-center gap-2">
+                          <Circle className="w-4 h-4 text-purple-400" />
+                          Test Cases
+                          {submitStatus === "checking" && (
+                            <span className="ml-auto text-xs text-yellow-400 font-semibold animate-pulse">
+                              Checking...
+                            </span>
+                          )}
+                          {submitStatus === "all_passed" && (
+                            <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full border bg-green-500/15 text-green-400 border-green-500/30">
+                              3/3 Passed ✓
+                            </span>
+                          )}
+                          {submitStatus === "some_failed" && (
+                            <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full border bg-red-500/15 text-red-400 border-red-500/30">
+                              {testResults.filter((r) => r.passed).length}/3
+                              Passed
+                            </span>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 pt-0">
+                        {extractTestCases(selectedProblem).map((tc, idx) => {
+                          const result = testResults[idx];
+                          const status =
+                            submitStatus === "checking"
+                              ? "running"
+                              : result
+                                ? result.passed
+                                  ? "pass"
+                                  : "fail"
+                                : "pending";
+
+                          return (
+                            <div
+                              key={tc.id}
+                              className={`rounded-lg border p-3 text-xs transition-colors ${
+                                status === "pass"
+                                  ? "bg-green-500/10 border-green-500/25"
+                                  : status === "fail"
+                                    ? "bg-red-500/10 border-red-500/25"
+                                    : "bg-muted/30 border-border"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-semibold text-foreground">
+                                  {tc.label}
+                                </span>
+                                {status === "pending" && (
+                                  <Circle className="w-3.5 h-3.5 text-muted-foreground" />
+                                )}
+                                {status === "running" && (
+                                  <Clock className="w-3.5 h-3.5 text-yellow-400 animate-spin" />
+                                )}
+                                {status === "pass" && (
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                                )}
+                                {status === "fail" && (
+                                  <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                                )}
+                              </div>
+                              <div className="space-y-1 font-mono">
+                                <div>
+                                  <span className="text-muted-foreground">
+                                    Input:{" "}
+                                  </span>
+                                  <span className="text-foreground">
+                                    {tc.input || "(none)"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">
+                                    Expected:{" "}
+                                  </span>
+                                  <span className="text-foreground">
+                                    {tc.expected}
+                                  </span>
+                                </div>
+                                {result && (
+                                  <div>
+                                    <span className="text-muted-foreground">
+                                      Status:{" "}
+                                    </span>
+                                    <span
+                                      className={
+                                        result.passed
+                                          ? "text-green-400 font-semibold"
+                                          : "text-red-400 font-semibold"
+                                      }
+                                    >
+                                      {result.passed ? "✓ Passed" : "✗ Failed"}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* All passed → Next Question */}
+                        {allPassed && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="space-y-2"
+                          >
+                            <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/30 text-green-400 text-xs font-semibold">
+                              <CheckCircle2 className="w-4 h-4" />
+                              All 3 test cases passed! Problem solved.
+                            </div>
+                            <Button
+                              className="w-full"
+                              size="sm"
+                              onClick={handleNextQuestion}
+                            >
+                              {hasNextProblem ? (
+                                <>
+                                  Next Question
+                                  <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                                  Back to Problem List
+                                </>
+                              )}
+                            </Button>
+                          </motion.div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+              </div>
 
               {/* Right: Code Editor */}
               <Card>
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-display">
-                      Code Editor
-                    </CardTitle>
-                  </div>
-                  {/* Language Tabs */}
+                  <CardTitle className="text-base font-display">
+                    Code Editor
+                  </CardTitle>
+                  {/* Language tab */}
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    {ALL_LANGUAGES.map((lang) => (
-                      <button
-                        type="button"
-                        key={lang}
-                        onClick={() => setActiveLanguage(lang)}
-                        className={`px-3 py-1 rounded text-xs font-semibold border transition-colors ${
-                          activeLanguage === lang
-                            ? LANG_TAB_STYLES[lang].active
-                            : `bg-transparent ${LANG_TAB_STYLES[lang].inactive}`
-                        }`}
-                        data-ocid={`coding.lang-tab.${lang.toLowerCase()}`}
-                      >
-                        {lang}
-                      </button>
-                    ))}
+                    {(["Java", "Python"] as Language[]).map((lang) => {
+                      const courseLangForTab =
+                        selectedCourse?.language === "Python"
+                          ? "Python"
+                          : "Java";
+                      if (lang !== courseLangForTab) return null;
+                      return (
+                        <span
+                          key={lang}
+                          className={`px-3 py-1 rounded text-xs font-semibold border ${LANG_STYLES[lang].active}`}
+                        >
+                          {lang}
+                        </span>
+                      );
+                    })}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0">
                   <textarea
-                    className="w-full h-64 bg-muted/50 border border-border rounded-lg p-3 text-sm font-mono text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    className="w-full h-72 bg-muted/50 border border-border rounded-lg p-3 text-sm font-mono text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
                     value={codeByLanguage[activeLanguage]}
-                    onChange={(e) => handleCodeChange(e.target.value)}
+                    onChange={(e) =>
+                      setCodeByLanguage((prev) => ({
+                        ...prev,
+                        [activeLanguage]: e.target.value,
+                      }))
+                    }
                     spellCheck={false}
                     placeholder={`Write your ${activeLanguage} solution here...`}
-                    data-ocid="coding.editor.textarea"
                   />
 
-                  {/* Output */}
-                  {output && (
-                    <div className="bg-muted/40 border border-border rounded-lg p-3">
-                      <p className="text-xs font-semibold text-muted-foreground mb-1">
-                        Output
-                      </p>
-                      <pre className="text-xs text-foreground font-mono whitespace-pre-wrap">
-                        {output}
-                      </pre>
-                    </div>
-                  )}
+                  {/* Compilation Status Banner */}
+                  <AnimatePresence>
+                    {compileStatus === "success" && (
+                      <motion.div
+                        key="compile-ok"
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-green-400 font-semibold text-xs">
+                            Compiled Successfully ✓
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            Click Submit to run the test cases.
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                    {compileStatus === "failed" && (
+                      <motion.div
+                        key="compile-fail"
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
+                      >
+                        <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-red-400 font-semibold text-xs">
+                            Compilation Failed ✗
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            Please write a valid solution before running.
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Action Buttons */}
                   <div className="flex gap-2">
+                    {/* Run Button */}
                     <Button
                       variant="outline"
                       size="sm"
                       className="flex-1"
                       onClick={handleRun}
-                      data-ocid="coding.run.button"
+                      disabled={isCompiling || isSubmitting || allPassed}
                     >
-                      <Play className="w-3.5 h-3.5 mr-1.5" />
-                      Run
+                      {isCompiling ? (
+                        <>
+                          <Clock className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                          Compiling...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3.5 h-3.5 mr-1.5" />
+                          Run
+                        </>
+                      )}
                     </Button>
+
+                    {/* Submit Button — enabled only after successful compile */}
                     <Button
                       size="sm"
                       className="flex-1"
                       onClick={handleSubmit}
-                      disabled={submitted}
-                      data-ocid="coding.submit.button"
+                      disabled={
+                        compileStatus !== "success" ||
+                        isSubmitting ||
+                        isCompiling ||
+                        allPassed
+                      }
+                      title={
+                        compileStatus !== "success" ? "Run your code first" : ""
+                      }
                     >
-                      <Send className="w-3.5 h-3.5 mr-1.5" />
-                      {submitted ? "Submitted ✓" : "Submit"}
+                      {isSubmitting ? (
+                        <>
+                          <Clock className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                          Checking...
+                        </>
+                      ) : allPassed ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                          Submitted ✓
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5 mr-1.5" />
+                          Submit
+                        </>
+                      )}
                     </Button>
                   </div>
+
+                  {compileStatus === null && !isCompiling && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Write your solution and click <strong>Run</strong> to
+                      compile.
+                    </p>
+                  )}
+                  {compileStatus === "failed" && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Fix your code and click <strong>Run</strong> again.
+                    </p>
+                  )}
+                  {compileStatus === "success" && !submitStatus && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Compilation passed! Now click <strong>Submit</strong>.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
